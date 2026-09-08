@@ -17,6 +17,8 @@ const defaultRequirements = [
   { id: '10', name: 'ISO Certification', mandatory: true, verification: 'Document' },
 ];
 
+import { api } from '../services/api';
+
 export default function CreateTender() {
   const navigate = useNavigate();
   const { addToast } = useToast();
@@ -26,6 +28,7 @@ export default function CreateTender() {
   });
   const [requirements, setRequirements] = useState(defaultRequirements);
   const [newReq, setNewReq] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const updateField = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }));
 
@@ -43,9 +46,39 @@ export default function CreateTender() {
     setRequirements(prev => prev.map(r => r.id === id ? { ...r, mandatory: !r.mandatory } : r));
   };
 
-  const handleCreate = () => {
-    addToast('success', 'Tender Created', 'Tender has been created successfully.');
-    navigate('/tenders');
+  const handleCreate = async () => {
+    if (!form.title) {
+      addToast('error', 'Validation Error', 'Tender title is required.');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await api.tenders.create({
+        title: form.title,
+        department: form.department || 'Procurement Division',
+        category: (form.category as any) || 'IT',
+        description: form.description || '',
+        submissionDeadline: form.deadline ? new Date(form.deadline).toISOString() : new Date(Date.now() + 30 * 86400000).toISOString(),
+        requirements: requirements.map((r, i) => ({
+          id: `req_${Date.now()}_${i}`,
+          tenderId: '',
+          requirementId: `R${String(i + 1).padStart(3, '0')}`,
+          description: r.name,
+          category: 'Legal',
+          condition: `Must satisfy ${r.name} specifications`,
+          mandatory: r.mandatory,
+          sourcePage: 1,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }))
+      });
+      addToast('success', 'Tender Created', 'Tender has been created and published successfully.');
+      navigate('/tenders');
+    } catch (err) {
+      addToast('error', 'Error Creating Tender', (err as Error).message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -209,9 +242,9 @@ export default function CreateTender() {
               Next <ChevronRight className="w-4 h-4" />
             </button>
           ) : (
-            <button onClick={handleCreate}
-              className="flex items-center gap-2 px-6 py-2 text-sm font-medium text-white bg-compliant rounded-lg hover:bg-emerald-700 transition-colors">
-              <Check className="w-4 h-4" /> Create Tender
+            <button onClick={handleCreate} disabled={isSubmitting}
+              className="flex items-center gap-2 px-6 py-2 text-sm font-medium text-white bg-compliant rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50">
+              <Check className="w-4 h-4" /> {isSubmitting ? 'Creating Tender...' : 'Create Tender'}
             </button>
           )}
         </div>

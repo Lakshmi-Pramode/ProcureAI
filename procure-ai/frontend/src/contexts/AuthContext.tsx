@@ -1,11 +1,12 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, type ReactNode, useEffect } from 'react';
 import type { User } from '../types';
 import { demoUser } from '../data/demo';
+import { api } from '../services/api';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password?: string, role?: string) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -17,10 +18,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return saved ? JSON.parse(saved) : null;
   });
 
-  const login = useCallback(async (_email: string, _password: string): Promise<boolean> => {
-    // Simulate network delay
-    await new Promise(r => setTimeout(r, 800));
-    // Demo: accept any credentials
+  // Check auth on mount
+  useEffect(() => {
+    const token = sessionStorage.getItem('bidguard_token');
+    if (token && !user) {
+      api.auth.me()
+        .then(u => {
+          if (u) {
+            setUser(u);
+            sessionStorage.setItem('bidguard_user', JSON.stringify(u));
+          }
+        })
+        .catch(() => {
+          // Keep existing or demo
+        });
+    }
+  }, [user]);
+
+  const login = useCallback(async (email: string, _password?: string, role = 'officer'): Promise<boolean> => {
+    try {
+      const resp = await api.auth.login(email, role);
+      if (resp && resp.user) {
+        setUser(resp.user);
+        sessionStorage.setItem('bidguard_user', JSON.stringify(resp.user));
+        return true;
+      }
+    } catch (err) {
+      console.warn('API login failed, falling back to demo session:', err);
+    }
+
+    // Demo fallback
     setUser(demoUser);
     sessionStorage.setItem('bidguard_user', JSON.stringify(demoUser));
     return true;
@@ -29,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     setUser(null);
     sessionStorage.removeItem('bidguard_user');
+    sessionStorage.removeItem('bidguard_token');
   }, []);
 
   return (

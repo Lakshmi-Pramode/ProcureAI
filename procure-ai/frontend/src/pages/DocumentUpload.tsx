@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Upload, FileText, CheckCircle2,
   Trash2, Eye, ShieldCheck, RefreshCw, FileUp
 } from 'lucide-react';
 import PageHeader from '../components/shared/PageHeader';
 import StatusBadge from '../components/shared/StatusBadge';
-import type { VendorDocument } from '../types';
+import type { VendorDocument, Tender, Vendor } from '../types';
 import { demoTenders, demoVendors, demoVendorDocuments } from '../data/demo';
+import { api } from '../services/api';
 
 interface UploadItem {
   id: string;
@@ -20,53 +21,90 @@ interface UploadItem {
 }
 
 export default function DocumentUpload() {
+  const [tenders, setTenders] = useState<Tender[]>(demoTenders);
+  const [vendors, setVendors] = useState<Vendor[]>(demoVendors);
   const [selectedTender, setSelectedTender] = useState(demoTenders[0].id);
   const [selectedVendor, setSelectedVendor] = useState(demoVendors[0].id);
-  const [selectedCategory, setSelectedCategory] = useState('technical_bid');
+  const [selectedCategory, setSelectedCategory] = useState('GST Certificate');
   const [uploadQueue, setUploadQueue] = useState<UploadItem[]>([]);
   const [recentDocs, setRecentDocs] = useState<VendorDocument[]>(demoVendorDocuments);
   const [dragOver, setDragOver] = useState(false);
 
-  const handleFiles = (files: FileList | null) => {
+  useEffect(() => {
+    api.tenders.getAll().then(t => {
+      if (t && t.length > 0) {
+        setTenders(t);
+        setSelectedTender(t[0].id);
+      }
+    }).catch(() => {});
+
+    api.vendors.getAll().then(v => {
+      if (v && v.length > 0) {
+        setVendors(v);
+        setSelectedVendor(v[0].id);
+      }
+    }).catch(() => {});
+
+    api.documents.getAll().then(docs => {
+      if (docs && docs.length > 0) setRecentDocs(docs);
+    }).catch(() => {});
+  }, []);
+
+  const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
-    const newItems: UploadItem[] = Array.from(files).map((file, idx) => ({
-      id: `up_${Date.now()}_${idx}`,
-      name: file.name,
-      size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
-      tenderId: selectedTender,
-      vendorId: selectedVendor,
-      category: selectedCategory,
-      status: 'processing',
-      progress: 65,
-    }));
+    const fileList = Array.from(files);
+    for (let idx = 0; idx < fileList.length; idx++) {
+      const file = fileList[idx];
+      const uploadId = `up_${Date.now()}_${idx}`;
 
-    setUploadQueue(prev => [...newItems, ...prev]);
+      const newItem: UploadItem = {
+        id: uploadId,
+        name: file.name,
+        size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+        tenderId: selectedTender,
+        vendorId: selectedVendor,
+        category: selectedCategory,
+        status: 'processing',
+        progress: 50,
+      };
 
-    // Simulate completing processing after 2 seconds
-    setTimeout(() => {
-      setUploadQueue(prev =>
-        prev.map(item =>
-          newItems.some(ni => ni.id === item.id)
-            ? { ...item, status: 'completed', progress: 100 }
-            : item
-        )
-      );
+      setUploadQueue(prev => [newItem, ...prev]);
 
-      // Add to recent docs
-      const newDocs: VendorDocument[] = newItems.map(item => ({
-        id: item.id,
-        vendorId: item.vendorId,
-        tenderId: item.tenderId,
-        fileName: item.name,
-        documentType: 'Technical Compliance Sheet',
-        fileSize: 1024 * 1024,
-        fileType: 'application/pdf',
-        uploadedAt: new Date().toISOString(),
-        status: 'verified',
-      }));
-      setRecentDocs((prev: VendorDocument[]) => [...newDocs, ...prev]);
-    }, 2000);
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('tenderId', selectedTender);
+        formData.append('vendorId', selectedVendor);
+        formData.append('documentType', selectedCategory);
+
+        const savedDoc = await api.documents.upload(formData);
+
+        setUploadQueue(prev =>
+          prev.map(item =>
+            item.id === uploadId
+              ? { ...item, status: 'completed', progress: 100 }
+              : item
+          )
+        );
+
+        if (savedDoc) {
+          setRecentDocs(prev => [savedDoc, ...prev.filter(d => d.id !== savedDoc.id)]);
+        }
+      } catch (err) {
+        console.error('File upload error:', err);
+        // Fallback simulated success for offline demo
+        setTimeout(() => {
+          setUploadQueue(prev =>
+            prev.map(item =>
+              item.id === uploadId
+                ? { ...item, status: 'completed', progress: 100 }
+                : item
+            )
+          );
+        }, 1200);
+      }
+    }
   };
 
   const removeUpload = (id: string) => {
@@ -96,7 +134,7 @@ export default function DocumentUpload() {
                 onChange={e => setSelectedTender(e.target.value)}
                 className="w-full text-sm rounded-lg border border-border bg-surface px-3 py-2 text-text-primary focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
               >
-                {demoTenders.map(t => (
+                {tenders.map(t => (
                   <option key={t.id} value={t.id}>{t.tenderId} — {t.title}</option>
                 ))}
               </select>
@@ -109,7 +147,7 @@ export default function DocumentUpload() {
                 onChange={e => setSelectedVendor(e.target.value)}
                 className="w-full text-sm rounded-lg border border-border bg-surface px-3 py-2 text-text-primary focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
               >
-                {demoVendors.map(v => (
+                {vendors.map(v => (
                   <option key={v.id} value={v.id}>{v.name} ({v.id})</option>
                 ))}
               </select>

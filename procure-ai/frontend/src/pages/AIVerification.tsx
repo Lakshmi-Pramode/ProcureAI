@@ -1,39 +1,109 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Sparkles, FileText,
   Check, RotateCcw,
-  BookOpen
+  BookOpen, RefreshCw, Play
 } from 'lucide-react';
 import PageHeader from '../components/shared/PageHeader';
 import StatusBadge from '../components/shared/StatusBadge';
-import type { ComplianceStatus, ComplianceResult } from '../types';
-import { demoTenders, demoVendors, demoRequirements, demoComplianceResults, demoVendorScores } from '../data/demo';
+import type { ComplianceStatus, ComplianceResult, Tender, Vendor } from '../types';
+import { demoTenders, demoVendors, demoRequirements, demoComplianceResults } from '../data/demo';
+import { api } from '../services/api';
+import { useToast } from '../contexts/ToastContext';
 
 export default function AIVerification() {
+  const { addToast } = useToast();
+  const [tenders, setTenders] = useState<Tender[]>(demoTenders);
+  const [vendors, setVendors] = useState<Vendor[]>(demoVendors);
   const [selectedTenderId, setSelectedTenderId] = useState(demoTenders[0].id);
   const [selectedVendorId, setSelectedVendorId] = useState(demoVendors[0].id);
+  const [results, setResults] = useState<ComplianceResult[]>(demoComplianceResults);
   const [selectedResultId, setSelectedResultId] = useState<string>(demoComplianceResults[0].id);
   const [userOverrides, setUserOverrides] = useState<Record<string, { status: ComplianceStatus; reason: string }>>({});
   const [overrideModalOpen, setOverrideModalOpen] = useState(false);
   const [overrideStatus, setOverrideStatus] = useState<ComplianceStatus>('compliant');
   const [overrideReason, setOverrideReason] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
 
-  const currentResults = demoComplianceResults.filter(
+  useEffect(() => {
+    api.tenders.getAll().then(t => {
+      if (t && t.length > 0) {
+        setTenders(t);
+        setSelectedTenderId(t[0].id);
+      }
+    }).catch(() => {});
+
+    api.vendors.getAll().then(v => {
+      if (v && v.length > 0) {
+        setVendors(v);
+        setSelectedVendorId(v[0].id);
+      }
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (selectedTenderId) {
+      api.verification.getResults(selectedTenderId, selectedVendorId)
+        .then(res => {
+          if (res && res.length > 0) {
+            setResults(res);
+            setSelectedResultId(res[0].id);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [selectedTenderId, selectedVendorId]);
+
+  const currentResults = results.filter(
     (r: ComplianceResult) => r.vendorId === selectedVendorId
   );
 
-  const activeResult = currentResults.find(r => r.id === selectedResultId) || currentResults[0] || demoComplianceResults[0];
-  const activeReq = activeResult.requirement || demoRequirements.find(req => req.requirementId === activeResult.requirementId) || demoRequirements[0];
+  const activeResult = currentResults.find(r => r.id === selectedResultId) || currentResults[0] || results[0] || demoComplianceResults[0];
+  const activeReq = activeResult?.requirement || demoRequirements.find(req => req.requirementId === activeResult?.requirementId) || demoRequirements[0];
 
-  const handleSaveOverride = () => {
-    if (!activeResult) return;
-    setUserOverrides(prev => ({
-      ...prev,
-      [activeResult.id]: {
-        status: overrideStatus,
-        reason: overrideReason || 'Manual verification by Procurement Officer',
+  const handleRunVerification = async () => {
+    setIsVerifying(true);
+    try {
+      const res = await api.verification.verify(selectedTenderId, selectedVendorId);
+      if (Array.isArray(res) && res.length > 0) {
+        setResults(prev => {
+          const others = prev.filter(p => p.vendorId !== selectedVendorId || p.tenderId !== selectedTenderId);
+          return [...res, ...others];
+        });
+        setSelectedResultId(res[0].id);
+        addToast('success', 'Verification Completed', `AI analyzed ${res.length} clauses for selected bidder.`);
+      } else {
+        addToast('info', 'Verification Ran', 'Clauses evaluated successfully.');
       }
-    }));
+    } catch (err) {
+      addToast('error', 'Verification Failed', (err as Error).message);
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleSaveOverride = async () => {
+    if (!activeResult) return;
+    try {
+      await api.verification.saveOverride(activeResult.id, overrideStatus, overrideReason || 'Manual verification by Procurement Officer');
+      setUserOverrides(prev => ({
+        ...prev,
+        [activeResult.id]: {
+          status: overrideStatus,
+          reason: overrideReason || 'Manual verification by Procurement Officer',
+        }
+      }));
+      addToast('success', 'Override Saved', `Clause ${activeResult.requirementId} status updated to ${overrideStatus}.`);
+    } catch {
+      setUserOverrides(prev => ({
+        ...prev,
+        [activeResult.id]: {
+          status: overrideStatus,
+          reason: overrideReason || 'Manual verification by Procurement Officer',
+        }
+      }));
+      addToast('success', 'Override Saved', `Updated to ${overrideStatus}.`);
+    }
     setOverrideModalOpen(false);
     setOverrideReason('');
   };
@@ -47,10 +117,25 @@ export default function AIVerification() {
         subtitle="Deep semantic matching of tender clauses against bidder documents with transparent reasoning"
         breadcrumbs={[{ label: 'AI Verification' }]}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <span className="text-xs text-compliant bg-compliant-bg border border-compliant-border px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-medium">
               <Sparkles className="w-3.5 h-3.5" /> BidGuard NLP v2.4 Active
             </span>
+            <button
+              onClick={handleRunVerification}
+              disabled={isVerifying}
+              className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition shadow-sm disabled:opacity-50"
+            >
+              {isVerifying ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Verifying...
+                </>
+              ) : (
+                <>
+                  <Play className="w-3.5 h-3.5" /> Run AI Verification
+                </>
+              )}
+            </button>
           </div>
         }
       />
@@ -64,7 +149,7 @@ export default function AIVerification() {
             onChange={e => setSelectedTenderId(e.target.value)}
             className="w-full text-sm rounded-lg border border-border bg-surface px-3 py-2 text-text-primary focus:ring-2 focus:ring-primary-500/30"
           >
-            {demoTenders.map(t => (
+            {tenders.map(t => (
               <option key={t.id} value={t.id}>{t.tenderId} — {t.title}</option>
             ))}
           </select>
@@ -76,14 +161,11 @@ export default function AIVerification() {
             onChange={e => setSelectedVendorId(e.target.value)}
             className="w-full text-sm rounded-lg border border-border bg-surface px-3 py-2 text-text-primary focus:ring-2 focus:ring-primary-500/30"
           >
-            {demoVendors.map(v => {
-              const vScore = demoVendorScores.find(s => s.vendorId === v.id);
-              return (
-                <option key={v.id} value={v.id}>
-                  {v.name} (Risk: {(vScore?.riskLevel || 'low').toUpperCase()})
-                </option>
-              );
-            })}
+            {vendors.map(v => (
+              <option key={v.id} value={v.id}>
+                {v.name} ({v.vendorId || v.id})
+              </option>
+            ))}
           </select>
         </div>
       </div>

@@ -1,17 +1,31 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Eye, ChevronDown } from 'lucide-react';
 import PageHeader from '../components/shared/PageHeader';
 import StatusBadge from '../components/shared/StatusBadge';
 import RiskBadge from '../components/shared/RiskBadge';
 import { demoVendors, demoVendorScores } from '../data/demo';
+import { api } from '../services/api';
+import type { Vendor, VendorScore } from '../types';
 
 export default function BidderManagement() {
   const [searchQuery, setSearchQuery] = useState('');
   const [riskFilter, setRiskFilter] = useState('all');
+  const [vendors, setVendors] = useState<Vendor[]>(demoVendors);
+  const [scores, setScores] = useState<VendorScore[]>(demoVendorScores);
 
-  const bidders = demoVendors.map(v => {
-    const score = demoVendorScores.find(s => s.vendorId === v.id);
+  useEffect(() => {
+    api.vendors.getAll().then(res => {
+      if (res && res.length > 0) setVendors(res);
+    }).catch(() => {});
+
+    api.vendors.getScores('tender_001').then(res => {
+      if (res && res.length > 0) setScores(res);
+    }).catch(() => {});
+  }, []);
+
+  const bidders = vendors.map(v => {
+    const score = scores.find(s => s.vendorId === v.id) || (v as any).score;
     return { ...v, score };
   });
 

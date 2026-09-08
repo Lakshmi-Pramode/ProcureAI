@@ -1,21 +1,42 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Download, Printer } from 'lucide-react';
 import PageHeader from '../components/shared/PageHeader';
 import { demoTenders, demoVendors, demoVendorScores } from '../data/demo';
+import { api } from '../services/api';
+import type { Tender, VendorScore } from '../types';
 
 export default function Reports() {
+  const [tenders, setTenders] = useState<Tender[]>(demoTenders);
   const [selectedTender, setSelectedTender] = useState(demoTenders[0].id);
   const [reportType, setReportType] = useState('full');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [vendorScores, setVendorScores] = useState<VendorScore[]>(demoVendorScores);
 
-  const tender = demoTenders.find(t => t.id === selectedTender) || demoTenders[0];
+  useEffect(() => {
+    api.tenders.getAll().then(res => {
+      if (res && res.length > 0) {
+        setTenders(res);
+        setSelectedTender(res[0].id);
+      }
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (selectedTender) {
+      api.vendors.getScores(selectedTender).then(res => {
+        if (res && res.length > 0) setVendorScores(res);
+      }).catch(() => {});
+    }
+  }, [selectedTender]);
+
+  const tender = tenders.find(t => t.id === selectedTender) || tenders[0] || demoTenders[0];
 
   const handleDownload = () => {
     setIsGenerating(true);
     setTimeout(() => {
       setIsGenerating(false);
-      alert('Report exported successfully: BidGuard_Evaluation_Report_' + tender.tenderId.replace(/\//g, '_') + '.pdf');
-    }, 1200);
+      window.print();
+    }, 600);
   };
 
   return (
@@ -38,7 +59,7 @@ export default function Reports() {
               className="px-4 py-2 bg-primary-600 text-white rounded-lg text-xs font-semibold hover:bg-primary-700 flex items-center gap-2 transition shadow-sm"
             >
               <Download className="w-4 h-4" />
-              {isGenerating ? 'Compiling PDF...' : 'Download PDF Report'}
+              {isGenerating ? 'Compiling Report...' : 'Download / Print Report'}
             </button>
           </div>
         }
@@ -53,7 +74,7 @@ export default function Reports() {
             onChange={e => setSelectedTender(e.target.value)}
             className="w-full text-xs font-medium rounded-lg border border-border bg-surface px-3 py-2 text-text-primary focus:ring-2 focus:ring-primary-500/30"
           >
-            {demoTenders.map(t => (
+            {tenders.map(t => (
               <option key={t.id} value={t.id}>{t.tenderId} — {t.title}</option>
             ))}
           </select>
@@ -153,7 +174,7 @@ export default function Reports() {
               </thead>
               <tbody className="divide-y divide-border">
                 {demoVendors.map((vendor, idx) => {
-                  const score = demoVendorScores.find(s => s.vendorId === vendor.id);
+                  const score = vendorScores.find(s => s.vendorId === vendor.id) || demoVendorScores.find(s => s.vendorId === vendor.id);
                   const riskLevel = score?.riskLevel || 'low';
                   const overallScore = score?.overallScore || 75;
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   FileText, ShieldCheck, AlertTriangle, Clock, CheckCircle2,
@@ -11,28 +11,44 @@ import RiskBadge from '../components/shared/RiskBadge';
 import Tabs from '../components/shared/Tabs';
 import ComplianceScore from '../components/shared/ComplianceScore';
 import DocumentCard from '../components/shared/DocumentCard';
-import type { ComplianceResult, VendorDocument, RiskFactor, Inconsistency, AuditEntry } from '../types';
+import type { ComplianceResult, VendorDocument, RiskFactor, Inconsistency, AuditEntry, Vendor } from '../types';
 import {
   demoVendors, demoComplianceResults,
   demoRiskAssessments, demoVendorScores, demoExternalVerifications,
   demoAuditLog
 } from '../data/demo';
+import { api } from '../services/api';
 
 export default function BidderDetails() {
   const { id } = useParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState('compliance');
+  const [vendor, setVendor] = useState<Vendor>(demoVendors.find(v => v.id === id) || demoVendors[0]);
+  const [compliance, setCompliance] = useState<ComplianceResult[]>(demoComplianceResults.filter(c => c.vendorId === (id || demoVendors[0].id)));
+  const [risk, setRisk] = useState<any>(demoRiskAssessments[id || demoVendors[0].id]);
+  const [documents, setDocuments] = useState<VendorDocument[]>(demoVendors[0].documents || []);
 
-  const vendor = demoVendors.find(v => v.id === id) || demoVendors[0];
+  useEffect(() => {
+    if (id) {
+      api.vendors.getById(id)
+        .then(res => {
+          if (res) {
+            setVendor(res);
+            if (res.documents) setDocuments(res.documents);
+            if (res.complianceResults && res.complianceResults.length > 0) setCompliance(res.complianceResults);
+            if (res.riskAssessment) setRisk(res.riskAssessment);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [id]);
+
   const score = demoVendorScores.find(s => s.vendorId === vendor.id);
-  const documents: VendorDocument[] = vendor.documents || [];
-  const compliance: ComplianceResult[] = demoComplianceResults.filter(c => c.vendorId === vendor.id);
-  const risk = demoRiskAssessments[vendor.id];
   const auditEntries: AuditEntry[] = demoAuditLog.filter(a => a.details.includes(vendor.name) || a.vendorId === vendor.id);
 
   const tabs = [
     { id: 'compliance', label: 'Compliance Criteria', icon: <ShieldCheck className="w-4 h-4" />, count: compliance.length },
     { id: 'documents', label: 'Submitted Documents', icon: <FileText className="w-4 h-4" />, count: documents.length },
-    { id: 'risks', label: 'Risk & Anomalies', icon: <AlertTriangle className="w-4 h-4" />, count: (risk?.factors.length || 0) + (risk?.inconsistencies.length || 0) },
+    { id: 'risks', label: 'Risk & Anomalies', icon: <AlertTriangle className="w-4 h-4" />, count: (risk?.factors?.length || 0) + (risk?.inconsistencies?.length || 0) },
     { id: 'verifications', label: 'External Verifications', icon: <CheckCircle2 className="w-4 h-4" />, count: demoExternalVerifications.length },
     { id: 'audit', label: 'Audit Trail', icon: <Clock className="w-4 h-4" /> },
   ];

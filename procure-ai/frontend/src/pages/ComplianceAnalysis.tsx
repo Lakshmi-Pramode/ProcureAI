@@ -1,20 +1,56 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   CheckCircle2, XCircle, AlertCircle, Download,
   Search, ChevronDown
 } from 'lucide-react';
 import PageHeader from '../components/shared/PageHeader';
-import type { Requirement, ComplianceResult } from '../types';
+import type { Requirement, ComplianceResult, Tender, Vendor } from '../types';
 import { demoTenders, demoVendors, demoRequirements, demoComplianceResults } from '../data/demo';
+import { api } from '../services/api';
 
 export default function ComplianceAnalysis() {
+  const [tenders, setTenders] = useState<Tender[]>(demoTenders);
+  const [vendors, setVendors] = useState<Vendor[]>(demoVendors);
+  const [requirements, setRequirements] = useState<Requirement[]>(demoRequirements);
+  const [complianceResults, setComplianceResults] = useState<ComplianceResult[]>(demoComplianceResults);
   const [selectedTenderId, setSelectedTenderId] = useState(demoTenders[0].id);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   const categories = ['all', 'Technical', 'Financial', 'Legal', 'Experience', 'Tax'];
 
-  const filteredRequirements: Requirement[] = demoRequirements.filter((req: Requirement) => {
+  useEffect(() => {
+    api.tenders.getAll().then(res => {
+      if (res && res.length > 0) {
+        setTenders(res);
+        setSelectedTenderId(res[0].id);
+      }
+    }).catch(() => {});
+
+    api.vendors.getAll().then(res => {
+      if (res && res.length > 0) setVendors(res);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (selectedTenderId) {
+      api.verification.getResults(selectedTenderId)
+        .then(res => {
+          if (res && res.length > 0) setComplianceResults(res);
+        })
+        .catch(() => {});
+
+      api.tenders.getById(selectedTenderId)
+        .then(t => {
+          if (t && t.requirements && t.requirements.length > 0) {
+            setRequirements(t.requirements);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [selectedTenderId]);
+
+  const filteredRequirements: Requirement[] = requirements.filter((req: Requirement) => {
     const matchCat = selectedCategory === 'all' || req.category.toLowerCase() === selectedCategory.toLowerCase();
     const matchSearch = req.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
                         req.requirementId.toLowerCase().includes(searchQuery.toLowerCase());
@@ -22,8 +58,8 @@ export default function ComplianceAnalysis() {
   });
 
   // Calculate compliance per vendor
-  const vendorComplianceStats = demoVendors.map(vendor => {
-    const vendorResults = demoComplianceResults.filter((r: ComplianceResult) => r.vendorId === vendor.id);
+  const vendorComplianceStats = vendors.map(vendor => {
+    const vendorResults = complianceResults.filter((r: ComplianceResult) => r.vendorId === vendor.id);
     const compliantCount = vendorResults.filter((r: ComplianceResult) => r.status === 'compliant').length;
     const totalCount = vendorResults.length || 1;
     const percent = Math.round((compliantCount / totalCount) * 100);
@@ -102,7 +138,7 @@ export default function ComplianceAnalysis() {
               onChange={e => setSelectedTenderId(e.target.value)}
               className="appearance-none pl-3 pr-8 py-2 text-xs font-semibold rounded-lg border border-border bg-surface text-text-primary focus:ring-2 focus:ring-primary-500/30"
             >
-              {demoTenders.map(t => (
+              {tenders.map(t => (
                 <option key={t.id} value={t.id}>{t.tenderId} ({t.category})</option>
               ))}
             </select>

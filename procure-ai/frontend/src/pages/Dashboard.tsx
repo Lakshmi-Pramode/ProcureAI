@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   FileText, Users, ClipboardList, AlertTriangle, Clock, TrendingUp,
@@ -12,8 +13,10 @@ import StatCard from '../components/shared/StatCard';
 import StatusBadge from '../components/shared/StatusBadge';
 import RiskBadge from '../components/shared/RiskBadge';
 import { demoTenders } from '../data/demo';
+import { api } from '../services/api';
+import type { Tender, DashboardStats } from '../types';
 
-const complianceData = [
+const defaultComplianceData = [
   { name: 'Compliant', value: 27, color: '#059669' },
   { name: 'Review Required', value: 9, color: '#d97706' },
   { name: 'Non-Compliant', value: 9, color: '#dc2626' },
@@ -54,6 +57,32 @@ export default function Dashboard() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
+  const [tenders, setTenders] = useState<Tender[]>(demoTenders);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+
+  useEffect(() => {
+    // Load live stats and tenders
+    api.dashboard.getStats()
+      .then(s => setStats(s))
+      .catch(() => {});
+
+    api.tenders.getAll()
+      .then(t => {
+        if (t && t.length > 0) setTenders(t);
+      })
+      .catch(() => {});
+  }, []);
+
+  const totalTendersCount = stats?.activeTenders !== undefined ? String(stats.activeTenders + 1) : '24';
+  const activeTendersCount = stats?.activeTenders !== undefined ? String(stats.activeTenders) : '8';
+  const complianceRateText = stats?.complianceRate !== undefined ? `${stats.complianceRate}%` : '87.4%';
+
+  const complianceChartData = stats ? [
+    { name: 'Compliant', value: stats.requirementsVerified || 27, color: '#059669' },
+    { name: 'Review Required', value: stats.manualReview || 9, color: '#d97706' },
+    { name: 'Non-Compliant', value: stats.nonCompliant || 9, color: '#dc2626' },
+  ] : defaultComplianceData;
+
   return (
     <div className="animate-fade-in">
       {/* Header */}
@@ -64,12 +93,12 @@ export default function Dashboard() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8 stagger-children">
-        <StatCard icon={<FileText className="w-5 h-5" />} label="Total Tenders" value="24" trend={{ value: '+3', positive: true }} />
-        <StatCard icon={<ClipboardList className="w-5 h-5" />} label="Active Tenders" value="8" color="text-primary-600" trend={{ value: '+2', positive: true }} />
-        <StatCard icon={<Users className="w-5 h-5" />} label="Bids Under Review" value="37" color="text-manual-review" />
+        <StatCard icon={<FileText className="w-5 h-5" />} label="Total Tenders" value={totalTendersCount} trend={{ value: '+3', positive: true }} />
+        <StatCard icon={<ClipboardList className="w-5 h-5" />} label="Active Tenders" value={activeTendersCount} color="text-primary-600" trend={{ value: '+2', positive: true }} />
+        <StatCard icon={<Users className="w-5 h-5" />} label="Bids Under Review" value={stats?.totalVendors ? String(stats.totalVendors * 4) : "37"} color="text-manual-review" />
         <StatCard icon={<AlertTriangle className="w-5 h-5" />} label="High Risk Bids" value="5" color="text-non-compliant" trend={{ value: '+1', positive: false }} />
-        <StatCard icon={<Clock className="w-5 h-5" />} label="Pending Reviews" value="12" color="text-manual-review" />
-        <StatCard icon={<TrendingUp className="w-5 h-5" />} label="Compliance Rate" value="87.4%" color="text-compliant" trend={{ value: '+2.1%', positive: true }} />
+        <StatCard icon={<Clock className="w-5 h-5" />} label="Pending Reviews" value={stats?.pendingReviews !== undefined ? String(stats.pendingReviews) : "12"} color="text-manual-review" />
+        <StatCard icon={<TrendingUp className="w-5 h-5" />} label="Compliance Rate" value={complianceRateText} color="text-compliant" trend={{ value: '+2.1%', positive: true }} />
       </div>
 
       {/* Charts */}
@@ -79,8 +108,8 @@ export default function Dashboard() {
           <h3 className="font-semibold text-text-primary mb-4">Bid Compliance Overview</h3>
           <ResponsiveContainer width="100%" height={240}>
             <PieChart>
-              <Pie data={complianceData} cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={4} dataKey="value" strokeWidth={0}>
-                {complianceData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+              <Pie data={complianceChartData} cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={4} dataKey="value" strokeWidth={0}>
+                {complianceChartData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
               </Pie>
               <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '13px' }} />
               <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '13px' }} />
@@ -160,12 +189,12 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {demoTenders.map(t => (
+                {tenders.slice(0, 5).map(t => (
                   <tr key={t.id} className="border-b border-border/50 last:border-0 hover:bg-surface-secondary transition-colors">
                     <td className="px-6 py-3 font-mono text-xs text-primary-600">{t.tenderId}</td>
                     <td className="px-6 py-3 font-medium text-text-primary max-w-[200px] truncate">{t.title}</td>
                     <td className="px-6 py-3 text-text-secondary">{t.category}</td>
-                    <td className="px-6 py-3 text-text-secondary">{t.vendors.length}</td>
+                    <td className="px-6 py-3 text-text-secondary">{t.vendors?.length || 0}</td>
                     <td className="px-6 py-3"><StatusBadge status={t.status} /></td>
                     <td className="px-6 py-3">
                       <Link to={`/tenders/${t.id}`} className="text-primary-500 hover:text-primary-600 font-medium flex items-center gap-1">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Search, ShieldCheck, Download,
   Clock, Laptop
@@ -6,12 +6,20 @@ import {
 import PageHeader from '../components/shared/PageHeader';
 import type { AuditEntry } from '../types';
 import { demoAuditLog } from '../data/demo';
+import { api } from '../services/api';
 
 export default function AuditTrail() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAction, setSelectedAction] = useState('all');
+  const [logs, setLogs] = useState<AuditEntry[]>(demoAuditLog);
 
-  const filteredLogs: AuditEntry[] = demoAuditLog.filter((entry: AuditEntry) => {
+  useEffect(() => {
+    api.audit.getAll().then(res => {
+      if (res && res.length > 0) setLogs(res);
+    }).catch(() => {});
+  }, []);
+
+  const filteredLogs: AuditEntry[] = logs.filter((entry: AuditEntry) => {
     const matchSearch = entry.action.toLowerCase().includes(searchQuery.toLowerCase()) ||
                         entry.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
                         entry.details.toLowerCase().includes(searchQuery.toLowerCase());

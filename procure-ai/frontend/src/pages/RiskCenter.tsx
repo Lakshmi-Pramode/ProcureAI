@@ -1,28 +1,38 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   AlertTriangle, ShieldAlert, AlertCircle,
   Network, ShieldCheck, Search
 } from 'lucide-react';
 import PageHeader from '../components/shared/PageHeader';
 import RiskBadge from '../components/shared/RiskBadge';
-import type { RiskAssessment, RiskFactor, Inconsistency } from '../types';
+import type { RiskAssessment, RiskFactor, Inconsistency, Vendor } from '../types';
 import { demoVendors, demoRiskAssessments } from '../data/demo';
+import { api } from '../services/api';
 
 export default function RiskCenter() {
   const [selectedRiskFilter, setSelectedRiskFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [vendors, setVendors] = useState<Vendor[]>(demoVendors);
+  const [riskAssessmentList, setRiskAssessmentList] = useState<RiskAssessment[]>(Object.values(demoRiskAssessments));
 
-  // Collect all risks across vendors
-  const riskAssessmentList: RiskAssessment[] = Object.values(demoRiskAssessments);
+  useEffect(() => {
+    api.vendors.getAll().then(res => {
+      if (res && res.length > 0) setVendors(res);
+    }).catch(() => {});
+
+    api.risk.getAll().then(res => {
+      if (res && res.length > 0) setRiskAssessmentList(res);
+    }).catch(() => {});
+  }, []);
 
   const allRiskFactors = riskAssessmentList.flatMap((ra: RiskAssessment) => {
-    const vendor = demoVendors.find(v => v.id === ra.vendorId);
-    return ra.factors.map((f: RiskFactor) => ({ ...f, vendor, vendorId: ra.vendorId }));
+    const vendor = vendors.find(v => v.id === ra.vendorId);
+    return (ra.factors || []).map((f: RiskFactor) => ({ ...f, vendor, vendorId: ra.vendorId }));
   });
 
   const allInconsistencies = riskAssessmentList.flatMap((ra: RiskAssessment) => {
-    const vendor = demoVendors.find(v => v.id === ra.vendorId);
-    return ra.inconsistencies.map((inc: Inconsistency) => ({ ...inc, vendor, vendorId: ra.vendorId }));
+    const vendor = vendors.find(v => v.id === ra.vendorId);
+    return (ra.inconsistencies || []).map((inc: Inconsistency) => ({ ...inc, vendor, vendorId: ra.vendorId }));
   });
 
   const filteredFactors = allRiskFactors.filter(f => {

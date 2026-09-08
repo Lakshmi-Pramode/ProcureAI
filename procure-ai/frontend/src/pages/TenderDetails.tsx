@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   FileText, Users, ShieldCheck, Clock,
@@ -10,19 +10,40 @@ import RiskBadge from '../components/shared/RiskBadge';
 import Tabs from '../components/shared/Tabs';
 import ComplianceScore from '../components/shared/ComplianceScore';
 import { demoTender, demoTenders, demoRequirements, demoVendors, demoVendorScores } from '../data/demo';
-
-const tabs = [
-  { id: 'overview', label: 'Overview', icon: <FileText className="w-4 h-4" /> },
-  { id: 'requirements', label: 'Requirements', icon: <ShieldCheck className="w-4 h-4" />, count: 15 },
-  { id: 'bidders', label: 'Bidders', icon: <Users className="w-4 h-4" />, count: 3 },
-  { id: 'compliance', label: 'Compliance', icon: <CheckCircle className="w-4 h-4" /> },
-  { id: 'audit', label: 'Audit', icon: <Clock className="w-4 h-4" /> },
-];
+import { api } from '../services/api';
 
 export default function TenderDetails() {
   const { id } = useParams();
   const [activeTab, setActiveTab] = useState('overview');
-  const tender = id === 'tender_001' ? demoTender : demoTenders.find(t => t.id === id) || demoTender;
+  const [tender, setTender] = useState<any>(
+    id === 'tender_001' ? demoTender : demoTenders.find(t => t.id === id) || demoTender
+  );
+  const [requirements, setRequirements] = useState(demoRequirements);
+  const [vendors, setVendors] = useState(demoVendors);
+  const [vendorScores, setVendorScores] = useState(demoVendorScores);
+
+  useEffect(() => {
+    if (id) {
+      api.tenders.getById(id)
+        .then(res => {
+          if (res) {
+            setTender(res);
+            if (res.requirements) setRequirements(res.requirements);
+            if (res.vendors) setVendors(res.vendors);
+            if (res.vendorScores) setVendorScores(res.vendorScores);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [id]);
+
+  const tabs = [
+    { id: 'overview', label: 'Overview', icon: <FileText className="w-4 h-4" /> },
+    { id: 'requirements', label: 'Requirements', icon: <ShieldCheck className="w-4 h-4" />, count: requirements.length },
+    { id: 'bidders', label: 'Bidders', icon: <Users className="w-4 h-4" />, count: (tender.vendors || []).length },
+    { id: 'compliance', label: 'Compliance', icon: <CheckCircle className="w-4 h-4" /> },
+    { id: 'audit', label: 'Audit', icon: <Clock className="w-4 h-4" /> },
+  ];
 
   return (
     <div className="animate-fade-in">
@@ -94,7 +115,7 @@ export default function TenderDetails() {
 
           {activeTab === 'requirements' && (
             <div className="space-y-3">
-              {demoRequirements.map((req) => (
+              {requirements.map((req) => (
                 <div key={req.id} className="flex items-start gap-4 p-4 rounded-lg border border-border hover:bg-surface-secondary transition-colors">
                   <span className="text-xs font-bold text-primary-500 bg-primary-50 px-2 py-1 rounded-md shrink-0">{req.requirementId}</span>
                   <div className="flex-1 min-w-0">
@@ -119,8 +140,8 @@ export default function TenderDetails() {
 
           {activeTab === 'bidders' && (
             <div className="space-y-4">
-              {demoVendors.map(vendor => {
-                const score = demoVendorScores.find(s => s.vendorId === vendor.id);
+              {vendors.map(vendor => {
+                const score = vendorScores.find(s => s.vendorId === vendor.id);
                 return (
                   <div key={vendor.id} className="flex items-center gap-4 p-4 rounded-xl border border-border hover:shadow-md hover:border-border-strong transition-all">
                     <div className="w-10 h-10 rounded-full bg-primary-50 text-primary-600 flex items-center justify-center font-bold text-sm shrink-0">
@@ -128,7 +149,7 @@ export default function TenderDetails() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-text-primary">{vendor.name}</p>
-                      <p className="text-xs text-text-tertiary">{vendor.vendorId} · {vendor.documents.length} documents</p>
+                      <p className="text-xs text-text-tertiary">{vendor.vendorId} · {(vendor.documents || []).length} documents</p>
                     </div>
                     <div className="text-center">
                       <p className="text-lg font-bold" style={{ color: (score?.overallScore || 0) >= 80 ? '#059669' : (score?.overallScore || 0) >= 50 ? '#d97706' : '#dc2626' }}>
@@ -149,7 +170,7 @@ export default function TenderDetails() {
           {activeTab === 'compliance' && (
             <div className="text-center py-8">
               <div className="flex justify-center gap-8 flex-wrap">
-                {demoVendorScores.map(vs => (
+                {vendorScores.map(vs => (
                   <div key={vs.vendorId} className="text-center">
                     <ComplianceScore score={vs.overallScore} size="sm" />
                     <p className="text-sm font-medium text-text-primary mt-3">{vs.vendorName}</p>
