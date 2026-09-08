@@ -3,10 +3,9 @@
 // ============================================================
 import type {
   Tender, Requirement, Vendor, VendorDocument, ComplianceResult,
-  RiskAssessment, RiskFactor, Inconsistency, AuditEntry, DashboardStats,
+  RiskAssessment, AuditEntry, DashboardStats,
   VendorScore, ExternalVerification, User, ExtractedData,
-  RequirementCategory, ComplianceStatus, ConfidenceLevel, RiskLevel,
-  DocumentProcessingStatus
+  ComplianceStatus, ConfidenceLevel
 } from '../../types';
 
 // ─── Helper ──────────────────────────────────────────────────
@@ -512,3 +511,14 @@ export const demoExternalVerifications: ExternalVerification[] = [
   { service: 'EPFO Verification', status: 'unavailable', result: 'External verification required' },
   { service: 'Income Tax (e-Filing)', status: 'unavailable', result: 'External verification required' },
 ];
+
+export const demoComplianceResults: ComplianceResult[] = [
+  ...demoComplianceVendorA,
+  ...demoComplianceVendorB,
+  ...demoComplianceVendorC,
+];
+
+export const demoVendorDocuments: VendorDocument[] = demoVendors.flatMap(v => v.documents);
+
+export const demoAuditLog: AuditEntry[] = demoAuditTrail;
+
