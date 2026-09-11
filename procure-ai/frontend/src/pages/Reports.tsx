@@ -224,6 +224,11 @@ export default function Reports() {
             <p>Procurement Officer Signature</p>
           </div>
         </div>
+        
+        {/* Required SIH Disclaimer */}
+        <div className="pt-4 text-center text-[10px] text-text-tertiary italic">
+          "AI-assisted decision-support output. Final procurement decisions must be made by authorized officials."
+        </div>
       </div>
     </div>
   );

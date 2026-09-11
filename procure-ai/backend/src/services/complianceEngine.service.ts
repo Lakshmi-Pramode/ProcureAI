@@ -28,8 +28,55 @@ export class ComplianceEngineService {
     const results: ComplianceResult[] = [];
 
     for (const req of requirements) {
-      // Run AI evaluation for each requirement against bidder docs
-      const evaluation = await geminiService.evaluateCompliance(req, vendorDocs);
+      let evaluation;
+
+      // Hybrid Rule Engine: Deterministic checks for known numerical/boolean fields
+      let ruleEngineHandled = false;
+      const extractedFields = vendorDocs.map(d => d.extractedData?.fields || {}).reduce((acc, curr) => ({ ...acc, ...curr }), {});
+
+      if (req.category === 'Financial' && req.condition.includes('₹10 Crore')) {
+        // Example deterministic rule for turnover
+        const requiredTurnoverCr = 10.0;
+        const vendorTurnoverStr = extractedFields.averageTurnover as string || '';
+        const vendorTurnoverMatch = vendorTurnoverStr.match(/(\d+\.?\d*)/);
+        if (vendorTurnoverMatch) {
+          const vendorTurnoverCr = parseFloat(vendorTurnoverMatch[1]);
+          ruleEngineHandled = true;
+          evaluation = {
+            status: vendorTurnoverCr >= requiredTurnoverCr ? 'compliant' : 'non_compliant',
+            confidence: 100,
+            confidenceLevel: 'high' as const,
+            extractedValue: `₹${vendorTurnoverCr} Crore`,
+            expectedValue: req.condition,
+            explanation: vendorTurnoverCr >= requiredTurnoverCr
+              ? `Turnover of ₹${vendorTurnoverCr} Crore meets the ₹${requiredTurnoverCr} Crore requirement.`
+              : `Vendor turnover (₹${vendorTurnoverCr} Crore) is below required threshold (₹${requiredTurnoverCr} Crore).`,
+            evidenceDocName: vendorDocs.find(d => d.documentType === 'Financial Statement')?.fileName || 'Extracted Data',
+            evidencePage: 1,
+            evidenceText: `Extracted turnover: ${vendorTurnoverStr}`
+          };
+        }
+      } else if (req.category === 'Legal' && req.condition.toLowerCase().includes('gst')) {
+         if (extractedFields.gstin) {
+           ruleEngineHandled = true;
+           evaluation = {
+            status: 'compliant',
+            confidence: 100,
+            confidenceLevel: 'high' as const,
+            extractedValue: `GSTIN: ${extractedFields.gstin}`,
+            expectedValue: req.condition,
+            explanation: `Valid GSTIN found in vendor documents.`,
+            evidenceDocName: vendorDocs.find(d => (d.extractedData?.fields as any)?.gstin)?.fileName || 'Extracted Data',
+            evidencePage: 1,
+            evidenceText: `GSTIN: ${extractedFields.gstin}`
+          };
+         }
+      }
+
+      // Fallback to AI evaluation for semantic matching
+      if (!ruleEngineHandled) {
+        evaluation = await geminiService.evaluateCompliance(req, vendorDocs);
+      }
 
       const result: ComplianceResult = {
         id: `cr_${tenderId}_${vendorId}_${req.requirementId}`,
@@ -37,7 +84,7 @@ export class ComplianceEngineService {
         vendorId,
         requirementId: req.requirementId,
         requirement: req,
-        status: evaluation.status,
+        status: evaluation.status as 'compliant' | 'non_compliant' | 'manual_review',
         confidence: evaluation.confidence,
         confidenceLevel: evaluation.confidenceLevel,
         extractedValue: evaluation.extractedValue,

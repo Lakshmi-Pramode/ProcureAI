@@ -1,12 +1,12 @@
 import { createContext, useContext, useState, useCallback, type ReactNode, useEffect } from 'react';
 import type { User } from '../types';
-import { demoUser } from '../data/demo';
 import { api } from '../services/api';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (email: string, password?: string, role?: string) => Promise<boolean>;
+  login: (email: string, password?: string) => Promise<boolean>;
+  register: (user: any) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -30,27 +30,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         })
         .catch(() => {
-          // Keep existing or demo
+          // invalid token
+          sessionStorage.removeItem('bidguard_token');
         });
     }
   }, [user]);
 
-  const login = useCallback(async (email: string, _password?: string, role = 'officer'): Promise<boolean> => {
+  const login = useCallback(async (email: string, password?: string): Promise<boolean> => {
     try {
-      const resp = await api.auth.login(email, role);
+      const resp = await api.auth.login(email, password);
       if (resp && resp.user) {
         setUser(resp.user);
         sessionStorage.setItem('bidguard_user', JSON.stringify(resp.user));
         return true;
       }
+      return false;
     } catch (err) {
-      console.warn('API login failed, falling back to demo session:', err);
+      console.error('Login failed:', err);
+      throw err; // Let the UI handle the error message
     }
+  }, []);
 
-    // Demo fallback
-    setUser(demoUser);
-    sessionStorage.setItem('bidguard_user', JSON.stringify(demoUser));
-    return true;
+  const register = useCallback(async (userData: any): Promise<boolean> => {
+    try {
+      const resp = await api.auth.register(userData);
+      if (resp && resp.user) {
+        setUser(resp.user);
+        sessionStorage.setItem('bidguard_user', JSON.stringify(resp.user));
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Registration failed:', err);
+      throw err;
+    }
   }, []);
 
   const logout = useCallback(() => {
@@ -60,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

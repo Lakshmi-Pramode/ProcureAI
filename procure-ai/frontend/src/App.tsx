@@ -20,6 +20,8 @@ import AuditTrail from './pages/AuditTrail';
 import Notifications from './pages/Notifications';
 import Settings from './pages/Settings';
 import AdminUsers from './pages/AdminUsers';
+import ManualReviewCenter from './pages/ManualReviewCenter';
+import AIAssistant from './pages/AIAssistant';
 
 export default function App() {
   return (
@@ -42,9 +44,11 @@ export default function App() {
               <Route path="/documents" element={<DocumentUpload />} />
               <Route path="/verification" element={<AIVerification />} />
               <Route path="/compliance" element={<ComplianceAnalysis />} />
+              <Route path="/manual-review" element={<ManualReviewCenter />} />
               <Route path="/risk-center" element={<RiskCenter />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/audit-trail" element={<AuditTrail />} />
+              <Route path="/ai-assistant" element={<AIAssistant />} />
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/admin/users" element={<AdminUsers />} />

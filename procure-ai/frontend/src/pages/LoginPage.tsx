@@ -1,15 +1,18 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Shield, Eye, EyeOff, Loader2, ArrowRight, ShieldCheck, UserCheck } from 'lucide-react';
+import { Shield, Eye, EyeOff, Loader2, ArrowRight, ShieldCheck, UserPlus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, register } = useAuth();
   const navigate = useNavigate();
+  
+  const [isLogin, setIsLogin] = useState(true);
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState('officer');
   const [showPassword, setShowPassword] = useState(false);
-  const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -18,30 +21,20 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
     try {
-      const success = await login(email || 'rajesh.kumar@procurement.gov.in', password || 'demo123');
-      if (success) navigate('/dashboard');
-      else setError('Invalid credentials');
-    } catch {
-      setError('An error occurred during authentication');
+      if (isLogin) {
+        const success = await login(email, password);
+        if (success) navigate('/dashboard');
+        else setError('Invalid credentials');
+      } else {
+        const success = await register({ name, email, password, role });
+        if (success) navigate('/dashboard');
+        else setError('Failed to create account');
+      }
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during authentication');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleOfficerLogin = async () => {
-    setEmail('rajesh.kumar@procurement.gov.in');
-    setPassword('demo123');
-    setLoading(true);
-    await login('rajesh.kumar@procurement.gov.in', 'demo123');
-    navigate('/dashboard');
-  };
-
-  const handleAdminLogin = async () => {
-    setEmail('suresh.r@gem.gov.in');
-    setPassword('admin123');
-    setLoading(true);
-    await login('suresh.r@gem.gov.in', 'admin123');
-    navigate('/dashboard');
   };
 
   return (
@@ -75,11 +68,16 @@ export default function LoginPage() {
         <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 p-8 space-y-6">
           <div className="text-center space-y-1.5">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-[11px] font-bold tracking-wide uppercase mb-1">
-              <ShieldCheck className="w-3.5 h-3.5 text-blue-600" /> Government e-Marketplace • Official Secure Portal
+              <ShieldCheck className="w-3.5 h-3.5 text-blue-600" /> Government e-Marketplace
             </div>
-            <h2 className="text-2xl font-black text-slate-900 tracking-tight">Official Sign In</h2>
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+              {isLogin ? 'Official Sign In' : 'Create Account'}
+            </h2>
             <p className="text-xs text-slate-500">
-              Access the AI-Powered Bid Compliance & Risk Verification Suite
+              {isLogin 
+                ? 'Access the AI-Powered Bid Compliance & Risk Verification Suite'
+                : 'Register for secure access to the procurement platform'
+              }
             </p>
           </div>
 
@@ -91,6 +89,23 @@ export default function LoginPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {!isLogin && (
+              <div>
+                <label htmlFor="name" className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Full Name
+                </label>
+                <input
+                  id="name"
+                  type="text"
+                  required
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder="Jane Doe"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-400 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:bg-white transition"
+                />
+              </div>
+            )}
+
             <div>
               <label htmlFor="email" className="block text-xs font-bold text-slate-700 mb-1.5">
                 Official Email Address
@@ -98,12 +113,31 @@ export default function LoginPage() {
               <input
                 id="email"
                 type="email"
+                required
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="rajesh.kumar@procurement.gov.in"
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-400 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:bg-white transition"
               />
             </div>
+
+            {!isLogin && (
+              <div>
+                <label htmlFor="role" className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Role
+                </label>
+                <select
+                  id="role"
+                  value={role}
+                  onChange={e => setRole(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:bg-white transition"
+                >
+                  <option value="officer">Procurement Officer</option>
+                  <option value="admin">Administrator</option>
+                  <option value="reviewer">Reviewer</option>
+                </select>
+              </div>
+            )}
 
             <div>
               <label htmlFor="password" className="block text-xs font-bold text-slate-700 mb-1.5">
@@ -113,6 +147,7 @@ export default function LoginPage() {
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
+                  required
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••••••"
@@ -128,28 +163,28 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-xs">
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={remember}
-                  onChange={e => setRemember(e.target.checked)}
-                  className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500/30"
-                />
-                <span className="text-slate-600 font-medium">Keep signed in</span>
-              </label>
-              <span className="text-blue-600 hover:underline cursor-pointer font-semibold">
-                Forgot access?
-              </span>
-            </div>
+            {isLogin && (
+              <div className="flex items-center justify-between text-xs">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500/30"
+                  />
+                  <span className="text-slate-600 font-medium">Keep signed in</span>
+                </label>
+                <span className="text-blue-600 hover:underline cursor-pointer font-semibold">
+                  Forgot access?
+                </span>
+              </div>
+            )}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-blue-500/25 hover:shadow-lg hover:shadow-blue-500/35 flex items-center justify-center gap-2 disabled:opacity-70 active:scale-[0.99] cursor-pointer"
+              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-blue-500/25 hover:shadow-lg hover:shadow-blue-500/35 flex items-center justify-center gap-2 disabled:opacity-70 active:scale-[0.99] cursor-pointer mt-2"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              {loading ? 'Authenticating with GeM...' : 'Sign In with Credentials'}
+              {loading ? 'Authenticating...' : isLogin ? 'Sign In' : 'Create Account'}
             </button>
           </form>
 
@@ -158,50 +193,28 @@ export default function LoginPage() {
               <div className="w-full border-t border-slate-200" />
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="bg-white px-3 font-semibold text-slate-400 uppercase tracking-wider text-[10px]">
-                Instant Hackathon Demo Logins
+              <span className="bg-white px-3 font-semibold text-slate-400 tracking-wider text-[10px]">
+                OR
               </span>
             </div>
           </div>
 
-          {/* Quick Demo Logins */}
-          <div className="space-y-2.5">
+          <div className="text-center">
             <button
               type="button"
-              onClick={handleOfficerLogin}
-              className="w-full p-3 rounded-xl border border-blue-200 bg-blue-50/70 hover:bg-blue-100/80 text-blue-900 transition flex items-center justify-between group cursor-pointer"
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setError('');
+              }}
+              className="text-xs font-bold text-slate-600 hover:text-blue-600 transition flex items-center justify-center gap-1.5 mx-auto cursor-pointer"
             >
-              <div className="flex items-center gap-2.5 text-left">
-                <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <UserCheck className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-slate-900">Procurement Officer</p>
-                  <p className="text-[11px] text-blue-700">Rajesh Kumar • CPCL Chennai</p>
-                </div>
-              </div>
-              <span className="text-[11px] font-bold text-blue-600 group-hover:translate-x-1 transition-transform">
-                Sign In →
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleAdminLogin}
-              className="w-full p-3 rounded-xl border border-purple-200 bg-purple-50/70 hover:bg-purple-100/80 text-purple-900 transition flex items-center justify-between group cursor-pointer"
-            >
-              <div className="flex items-center gap-2.5 text-left">
-                <div className="w-8 h-8 rounded-lg bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <ShieldCheck className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-slate-900">Platform Administrator</p>
-                  <p className="text-[11px] text-purple-700">Suresh Ramanathan • GeM Portal</p>
-                </div>
-              </div>
-              <span className="text-[11px] font-bold text-purple-600 group-hover:translate-x-1 transition-transform">
-                Sign In →
-              </span>
+              {isLogin ? (
+                <>
+                  <UserPlus className="w-3.5 h-3.5" /> Don't have an account? Sign up
+                </>
+              ) : (
+                'Already have an account? Sign in'
+              )}
             </button>
           </div>
         </div>

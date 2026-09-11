@@ -14,9 +14,11 @@ const mainNav = [
   { to: '/documents', icon: Upload, label: 'Document Ingestion' },
   { to: '/verification', icon: ShieldCheck, label: 'AI Verification' },
   { to: '/compliance', icon: BarChart3, label: 'Compliance Matrix' },
+  { to: '/manual-review', icon: AlertTriangle, label: 'Manual Review' },
   { to: '/risk-center', icon: AlertTriangle, label: 'Risk Intelligence' },
   { to: '/reports', icon: FileText, label: 'Reports' },
   { to: '/audit-trail', icon: ScrollText, label: 'Audit Trail' },
+  { to: '/ai-assistant', icon: HelpCircle, label: 'AI Assistant' },
 ];
 
 const adminNav = [

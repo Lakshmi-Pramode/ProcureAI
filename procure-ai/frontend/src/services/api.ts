@@ -45,10 +45,18 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 export const api = {
   // --- Auth ---
   auth: {
-    login: async (email: string, role: string) => {
+    login: async (email: string, password?: string) => {
       const data = await request<{ user: any; token: string }>('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, role })
+        body: JSON.stringify({ email, password })
+      });
+      if (data.token) sessionStorage.setItem('bidguard_token', data.token);
+      return data;
+    },
+    register: async (user: any) => {
+      const data = await request<{ user: any; token: string }>('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify(user)
       });
       if (data.token) sessionStorage.setItem('bidguard_token', data.token);
       return data;

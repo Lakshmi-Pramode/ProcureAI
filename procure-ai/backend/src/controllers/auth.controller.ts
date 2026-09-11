@@ -1,18 +1,31 @@
 import type { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 import { memoryStore } from '../services/memoryStore.service.js';
 import { config } from '../config/env.js';
 import type { UserRole } from '../types/index.js';
 
 export const login = async (req: Request, res: Response) => {
   try {
-    const { email, role } = req.body;
+    const { email, password } = req.body;
     let user = memoryStore.getUserByEmail(email);
 
     if (!user) {
-      // For ease of demo and testing, auto-create or pick role user
-      const users = memoryStore.getUsers();
-      user = users.find(u => u.role === role) || users[0];
+      return res.status(401).json({ success: false, error: 'Invalid credentials. User not found.' });
+    }
+
+    // Check password
+    if (user.password) {
+      const isValid = await bcrypt.compare(password, user.password);
+      if (!isValid) {
+        return res.status(401).json({ success: false, error: 'Invalid credentials. Incorrect password.' });
+      }
+    } else {
+      // Legacy demo users (rajesh.kumar@procurement.gov.in / suresh.r@gem.gov.in)
+      const expectedPassword = user.role === 'admin' ? 'admin123' : 'demo123';
+      if (password !== expectedPassword) {
+        return res.status(401).json({ success: false, error: 'Invalid credentials. Incorrect password.' });
+      }
     }
 
     const token = jwt.sign(
@@ -25,7 +38,7 @@ export const login = async (req: Request, res: Response) => {
       userId: user.id,
       userName: user.name,
       action: 'user_login',
-      details: `${user.name} logged in with role ${user.role}`
+      details: `${user.name} logged in securely with role ${user.role}`
     });
 
     res.json({
@@ -51,9 +64,9 @@ export const getCurrentUser = (req: any, res: Response) => {
 
 export const register = async (req: Request, res: Response) => {
   try {
-    const { name, email, role, organization } = req.body;
-    if (!name || !email) {
-      return res.status(400).json({ success: false, error: 'Name and email are required' });
+    const { name, email, password, role, organization } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ success: false, error: 'Name, email, and password are required' });
     }
 
     const existing = memoryStore.getUserByEmail(email);
@@ -61,10 +74,15 @@ export const register = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, error: 'User with this email already exists' });
     }
 
+    // Hash the password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
     const newUser = memoryStore.createUser({
       id: `user_${Date.now()}`,
       name,
       email,
+      password: hashedPassword,
       role: (role as UserRole) || 'officer',
       organization: organization || 'Procurement Organization'
     });
