@@ -94,3 +94,14 @@ export const getDocumentById = (req: Request, res: Response) => {
     res.status(500).json({ success: false, error: (err as Error).message });
   }
 };
+
+export const deleteDocument = (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const success = memoryStore.deleteDocument(id);
+    if (!success) return res.status(404).json({ success: false, error: 'Document not found' });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: (err as Error).message });
+  }
+};

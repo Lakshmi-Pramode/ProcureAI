@@ -1,6 +1,7 @@
 import os
 import json
 import re
+import asyncio
 from fastapi import FastAPI, UploadFile, HTTPException, File
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
@@ -13,6 +14,9 @@ load_dotenv()
 app = FastAPI(title="ProcureAI - AI Service")
 
 def get_groq_client() -> Optional[Groq]:
+    api_key = os.environ.get("GROQ_API_KEY")
+    if api_key:
+        return Groq(api_key=api_key)
     # PRIVACY MODE: Disable external API calls to Groq
     # Forces all endpoints to use the Local Heuristic Engine for instant, private evaluation.
     print("PROCURE-AI LOCAL MODE: Using local heuristic engine for privacy. No external API calls made.")
@@ -21,8 +25,9 @@ def get_groq_client() -> Optional[Groq]:
 def groq_chat(client: Groq, prompt: str) -> str:
     """Call Groq and return response text. Tries fastest available free model."""
     models_to_try = [
-        "meta-llama/llama-4-scout-17b-16e-instruct",
-        "llama-3.1-8b-instant",
+        "qwen/qwen3.8-27b",
+        "groq/compound",
+        "groq/compound-mini",
     ]
     last_err = None
     for model in models_to_try:
@@ -42,6 +47,7 @@ def groq_chat(client: Groq, prompt: str) -> str:
 class RequirementExtractionRequest(BaseModel):
     text: str
     tenderTitle: Optional[str] = None
+    useLocalAI: Optional[bool] = False
 
 class DocumentExtractionRequest(BaseModel):
     text: str
@@ -62,6 +68,7 @@ class VendorDocumentData(BaseModel):
 class ComplianceEvaluationRequest(BaseModel):
     requirement: Requirement
     vendorDocs: List[VendorDocumentData]
+    useLocalAI: Optional[bool] = False
 
 class VendorData(BaseModel):
     name: str
@@ -72,6 +79,7 @@ class RiskAnalysisRequest(BaseModel):
     vendor: VendorData
     docs: List[VendorDocumentData]
     reqs: List[Requirement]
+    useLocalAI: Optional[bool] = False
 
 class ChatRequest(BaseModel):
     query: str
@@ -96,32 +104,33 @@ async def extract_text_from_pdf(file: UploadFile = File(...)):
         reader = pypdf.PdfReader(pdf_file)
         text = ""
         for page in reader.pages:
-            text += page.extract_text() + "\n"
+            extracted = page.extract_text()
+            if extracted:
+                text += extracted + "\n"
         return {"text": text}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/extract-requirements")
 async def extract_requirements(req: RequirementExtractionRequest):
-    client = get_groq_client()
+    client = None if req.useLocalAI else get_groq_client()
     if client:
-        prompt = f"""You are a senior procurement auditor. Analyze the following tender notice/RFP document excerpt and extract all eligibility, legal, technical, financial, and certification requirements.
-Return a valid JSON array where each object has:
-- requirementId: string (e.g. "R001", "R002")
-- description: short title/name of the requirement
-- category: one of ["Legal", "Financial", "Technical", "Eligibility", "Experience", "Certification", "Tax", "Social Compliance", "Local Content", "Other"]
-- condition: exact requirement condition/threshold
-- mandatory: boolean
-- sourcePage: integer (approximate page or 1)
-- sourceText: direct excerpt from the text
+        prompt = f"""Extract compliance requirements from this tender text.
+Tender Title: {req.tenderTitle or 'Unknown'}
 
-Tender Context: {req.tenderTitle or 'General Tender'}
-Document Excerpt:
-{req.text[:12000]}
+Text:
+{req.text[:8000]}
 
-Return ONLY a JSON array. Do not include any Markdown code blocks."""
+Return a JSON array of objects with EXACTLY these keys:
+- requirementId (string like R001)
+- description (short string)
+- category (string: Legal, Financial, Technical, Certification, Experience, Local Content, Tax, Environmental, Quality, Social Compliance, Security, Administrative, Compliance, Insurance, Health & Safety, Unknown)
+- condition (string, required threshold/condition)
+- mandatory (boolean)
+
+Return ONLY valid JSON array."""
         try:
-            raw = groq_chat(client, prompt)
+            raw = await asyncio.to_thread(groq_chat, client, prompt)
             json_str = clean_json_response(raw)
             match = re.search(r'\[[\s\S]*\]', json_str)
             if match:
@@ -129,20 +138,23 @@ Return ONLY a JSON array. Do not include any Markdown code blocks."""
         except Exception as e:
             print(f"Groq error: {e}")
 
-    # Fallback heuristic
+    # Fallback heuristic extraction
     return [
-        {"requirementId": "R001", "description": "Valid GST Registration", "category": "Legal", "condition": "Must possess active GSTIN registration certificate", "mandatory": True, "sourcePage": 1, "sourceText": "The bidder must possess a valid GST registration certificate."},
-        {"requirementId": "R002", "description": "PAN Card", "category": "Tax", "condition": "Valid PAN card in entity name", "mandatory": True, "sourcePage": 1, "sourceText": "A copy of the valid PAN card of the bidding firm must be submitted."},
-        {"requirementId": "R003", "description": "Annual Financial Turnover", "category": "Financial", "condition": "Average annual turnover >= Rs.10 Crore in last 3 financial years", "mandatory": True, "sourcePage": 2, "sourceText": "Bidder must have an average annual turnover of at least Rs.10 Crore."}
+        {
+            "requirementId": "R001",
+            "description": "GST Registration",
+            "category": "Legal",
+            "condition": "Valid GSTIN",
+            "mandatory": True
+        }
     ]
 
 @app.post("/api/extract-document-fields")
 async def extract_document_fields(req: DocumentExtractionRequest):
     client = get_groq_client()
     if client:
-        prompt = f"""Extract key fields from this document of type "{req.docType}".
-Examples of fields:
-- For GST: gstin, legalName, tradeName, status, registrationDate
+        prompt = f"""Extract specific data fields from this {req.docType}.
+- For GST: gstin, legalName, tradeName, issueDate
 - For PAN: pan, name, status, category
 - For Financial: turnover_FY23, turnover_FY24, turnover_FY25, averageTurnover, netWorth, caName
 - For MSME: udyamNumber, enterpriseType, majorActivity
@@ -153,7 +165,7 @@ Document Text:
 
 Return ONLY a JSON object representing the extracted key-value pairs. No markdown."""
         try:
-            raw = groq_chat(client, prompt)
+            raw = await asyncio.to_thread(groq_chat, client, prompt)
             json_str = clean_json_response(raw)
             match = re.search(r'\{[\s\S]*\}', json_str)
             if match:
@@ -179,7 +191,7 @@ Return ONLY a JSON object representing the extracted key-value pairs. No markdow
 
 @app.post("/api/evaluate-compliance")
 async def evaluate_compliance(req: ComplianceEvaluationRequest):
-    client = get_groq_client()
+    client = None if req.useLocalAI else get_groq_client()
     doc_summaries = []
     for d in req.vendorDocs:
         fields_str = json.dumps(d.extractedData.get("fields", {}))
@@ -214,7 +226,7 @@ Evaluate compliance rigorously. Return a single JSON object with EXACTLY these f
 
 Return ONLY valid JSON. No markdown, no extra text."""
         try:
-            raw = groq_chat(client, prompt)
+            raw = await asyncio.to_thread(groq_chat, client, prompt)
             json_str = clean_json_response(raw)
             match = re.search(r'\{[\s\S]*\}', json_str)
             if match:

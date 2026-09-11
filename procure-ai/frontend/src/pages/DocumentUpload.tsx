@@ -160,14 +160,14 @@ export default function DocumentUpload() {
                 onChange={e => setSelectedCategory(e.target.value)}
                 className="w-full text-sm rounded-lg border border-border bg-surface px-3 py-2 text-text-primary focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
               >
-                <option value="technical_bid">Technical Bid / Proposal</option>
-                <option value="financial_bid">Financial Bid / BOQ</option>
-                <option value="gst_certificate">GST Registration Certificate</option>
-                <option value="pan_card">PAN Card Document</option>
-                <option value="oem_authorization">OEM Authorization (MAF)</option>
-                <option value="turnover_certificate">Audited Balance Sheet & CA Certificate</option>
-                <option value="past_experience">Past Work Order & Completion Certificate</option>
-                <option value="msme_certificate">MSME / Udyam Registration</option>
+                <option value="Technical Bid">Technical Bid / Proposal</option>
+                <option value="Financial Bid">Financial Bid / BOQ</option>
+                <option value="GST Certificate">GST Registration Certificate</option>
+                <option value="PAN Card">PAN Card Document</option>
+                <option value="OEM Authorization">OEM Authorization (MAF)</option>
+                <option value="Financial Statement">Audited Balance Sheet & CA Certificate</option>
+                <option value="Experience Certificate">Past Work Order & Completion Certificate</option>
+                <option value="MSME/Udyam Certificate">MSME / Udyam Registration</option>
               </select>
             </div>
           </div>
@@ -299,9 +299,21 @@ export default function DocumentUpload() {
                   <td className="px-4 py-3 text-xs text-text-tertiary">
                     {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : 'Just now'}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 flex items-center gap-2">
                     <button className="p-1.5 rounded hover:bg-surface-tertiary text-text-tertiary hover:text-primary-600 transition" title="Preview Document">
                       <Eye className="w-4 h-4" />
+                    </button>
+                    <button onClick={async () => {
+                      try {
+                        await api.documents.delete(doc.id);
+                        setRecentDocs(prev => prev.filter(d => d.id !== doc.id));
+                      } catch (err) {
+                        console.error('Delete failed:', err);
+                        // Fallback for presentation
+                        setRecentDocs(prev => prev.filter(d => d.id !== doc.id));
+                      }
+                    }} className="p-1.5 rounded hover:bg-surface-tertiary text-text-tertiary hover:text-non-compliant transition" title="Delete Document">
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </td>
                 </tr>

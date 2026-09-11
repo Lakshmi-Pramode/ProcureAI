@@ -7,10 +7,7 @@ const AI_SERVICE_URL = 'http://127.0.0.1:8000/api';
 
 class GeminiService {
   // --- Requirement Extraction from RFP / Tender Text ---
-  public async extractRequirementsFromText(
-    text: string,
-    tenderTitle?: string
-  ): Promise<Array<{
+  public async extractRequirementsFromText(text: string, tenderTitle?: string, useLocalAI: boolean = false): Promise<Array<{
     requirementId: string;
     description: string;
     category: RequirementCategory;
@@ -23,10 +20,10 @@ class GeminiService {
       const response = await fetch(`${AI_SERVICE_URL}/extract-requirements`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, tenderTitle })
+        body: JSON.stringify({ text, tenderTitle, useLocalAI })
       });
       if (response.ok) {
-        return await response.json();
+        return (await response.json()) as any;
       }
       throw new Error(`AI Service returned ${response.status}`);
     } catch (err) {
@@ -79,7 +76,7 @@ class GeminiService {
         body: JSON.stringify({ text, docType })
       });
       if (response.ok) {
-        return await response.json();
+        return (await response.json()) as any;
       }
       throw new Error(`AI Service returned ${response.status}`);
     } catch (err) {
@@ -91,7 +88,8 @@ class GeminiService {
   // --- Semantic Clause Compliance Verification ---
   public async evaluateCompliance(
     requirement: Requirement,
-    vendorDocs: VendorDocument[]
+    vendorDocs: VendorDocument[],
+    useLocalAI: boolean = false
   ): Promise<{
     status: ComplianceStatus;
     confidence: number;
@@ -107,10 +105,10 @@ class GeminiService {
       const response = await fetch(`${AI_SERVICE_URL}/evaluate-compliance`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requirement, vendorDocs })
+        body: JSON.stringify({ requirement, vendorDocs, useLocalAI })
       });
       if (response.ok) {
-        return await response.json();
+        return (await response.json()) as any;
       }
       throw new Error(`AI Service returned ${response.status}`);
     } catch (err) {
@@ -148,7 +146,7 @@ class GeminiService {
         body: JSON.stringify({ vendor, docs, reqs })
       });
       if (response.ok) {
-        return await response.json();
+        return (await response.json()) as any;
       }
       throw new Error(`AI Service returned ${response.status}`);
     } catch (err) {
@@ -172,7 +170,7 @@ class GeminiService {
         body: JSON.stringify({ query, context })
       });
       if (response.ok) {
-        const data = await response.json();
+        const data: any = await response.json();
         return data.reply;
       }
       throw new Error(`AI Service returned ${response.status}`);

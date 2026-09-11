@@ -93,8 +93,11 @@ export interface Vendor {
 
 // --- Documents ---
 export type DocumentType =
+  | 'Technical Bid'
+  | 'Financial Bid'
   | 'GST Certificate'
   | 'PAN Card'
+  | 'OEM Authorization'
   | 'MSME/Udyam Certificate'
   | 'Income Tax Document'
   | 'Financial Statement'

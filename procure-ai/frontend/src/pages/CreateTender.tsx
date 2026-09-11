@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, ChevronLeft, Plus, Trash2, Check } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Plus, Trash2, Check, UploadCloud, Sparkles, Loader } from 'lucide-react';
 import PageHeader from '../components/shared/PageHeader';
 import { useToast } from '../contexts/ToastContext';
 
@@ -29,6 +29,8 @@ export default function CreateTender() {
   const [requirements, setRequirements] = useState(defaultRequirements);
   const [newReq, setNewReq] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const updateField = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }));
 
@@ -44,6 +46,32 @@ export default function CreateTender() {
 
   const toggleMandatory = (id: string) => {
     setRequirements(prev => prev.map(r => r.id === id ? { ...r, mandatory: !r.mandatory } : r));
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setIsExtracting(true);
+    try {
+      addToast('info', 'Extracting...', 'AI is analyzing the document for requirements.');
+      // Passing true for useLocalAI by default, or could be a toggle. We'll leave it false so they get real Groq AI.
+      const extracted = await api.tenders.uploadAndExtract(file, false);
+      if (extracted && extracted.length > 0) {
+        setRequirements(extracted.map((r, i) => ({
+          id: `ext_${Date.now()}_${i}`,
+          name: r.description,
+          mandatory: r.mandatory,
+          verification: r.category
+        })));
+        addToast('success', 'Extraction Complete', `Found ${extracted.length} requirements automatically.`);
+      }
+    } catch (err) {
+      addToast('error', 'Extraction Failed', (err as Error).message);
+    } finally {
+      setIsExtracting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   const handleCreate = async () => {
@@ -165,7 +193,28 @@ export default function CreateTender() {
         {step === 2 && (
           <div className="max-w-2xl">
             <h3 className="text-lg font-semibold text-text-primary mb-4">Eligibility Requirements</h3>
-            <p className="text-sm text-text-secondary mb-6">Define the eligibility requirements that bidders must satisfy.</p>
+            <p className="text-sm text-text-secondary mb-6">Define the eligibility requirements that bidders must satisfy. You can upload a tender document to let AI automatically extract the clauses.</p>
+
+            <div className="mb-6 p-4 rounded-xl border border-primary-200 bg-primary-50/50">
+              <div className="flex items-start gap-4">
+                <div className="p-2 bg-primary-100 rounded-lg text-primary-600">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-sm font-semibold text-text-primary mb-1">AI Auto-Extraction</h4>
+                  <p className="text-xs text-text-secondary mb-3">Upload your Tender/RFP document (PDF) and our NLP engine will automatically extract all legal, financial, and technical criteria.</p>
+                  <input type="file" accept=".pdf" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
+                  <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isExtracting}
+                    className="px-4 py-2 bg-white border border-primary-300 text-primary-700 text-xs font-semibold rounded-lg hover:bg-primary-50 transition-colors flex items-center gap-2 shadow-sm disabled:opacity-60"
+                  >
+                    {isExtracting ? <Loader className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
+                    {isExtracting ? 'Analyzing Document...' : 'Upload Tender Document'}
+                  </button>
+                </div>
+              </div>
+            </div>
 
             <div className="flex items-center gap-3 mb-4">
               <input value={newReq} onChange={e => setNewReq(e.target.value)} placeholder="Add new requirement..."

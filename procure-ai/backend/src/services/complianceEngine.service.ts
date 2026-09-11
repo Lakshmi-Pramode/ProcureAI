@@ -6,7 +6,8 @@ export class ComplianceEngineService {
   public async verifyVendorCompliance(
     tenderId: string,
     vendorId: string,
-    verifiedBy = 'ProcureAI Engine v2.4'
+    verifiedBy = 'ProcureAI Engine v2.4',
+    useLocalAI: boolean = false
   ): Promise<ComplianceResult[]> {
     const tender = memoryStore.getTenderById(tenderId);
     const vendor = memoryStore.getVendorById(vendorId);
@@ -25,10 +26,8 @@ export class ComplianceEngineService {
 
     const vendorDocs: VendorDocument[] = memoryStore.getDocuments(vendorId, tenderId);
 
-    const results: ComplianceResult[] = [];
-
-    for (const req of requirements) {
-      let evaluation;
+    const results: ComplianceResult[] = await Promise.all(requirements.map(async (req) => {
+      let evaluation: any;
 
       // Hybrid Rule Engine: Deterministic checks for known numerical/boolean fields
       let ruleEngineHandled = false;
@@ -75,7 +74,7 @@ export class ComplianceEngineService {
 
       // Fallback to AI evaluation for semantic matching
       if (!ruleEngineHandled) {
-        evaluation = await geminiService.evaluateCompliance(req, vendorDocs);
+        evaluation = await geminiService.evaluateCompliance(req, vendorDocs, useLocalAI);
       }
 
       const result: ComplianceResult = {
@@ -98,8 +97,8 @@ export class ComplianceEngineService {
       };
 
       memoryStore.saveComplianceResult(result);
-      results.push(result);
-    }
+      return result;
+    }));
 
     // Mark tender as analyzed
     memoryStore.updateTender(tender.id, { isAnalyzed: true, analyzedAt: new Date().toISOString() });
@@ -119,16 +118,16 @@ export class ComplianceEngineService {
     return results;
   }
 
-  public async verifyAllBiddersForTender(tenderId: string): Promise<Record<string, ComplianceResult[]>> {
+  public async verifyAllBiddersForTender(tenderId: string, useLocalAI: boolean = false): Promise<Record<string, ComplianceResult[]>> {
     const tender = memoryStore.getTenderById(tenderId);
     if (!tender) throw new Error(`Tender ${tenderId} not found`);
 
     const vendors = memoryStore.getVendors(tenderId);
     const allResults: Record<string, ComplianceResult[]> = {};
 
-    for (const v of vendors) {
-      allResults[v.id] = await this.verifyVendorCompliance(tenderId, v.id);
-    }
+    await Promise.all(vendors.map(async (v) => {
+      allResults[v.id] = await this.verifyVendorCompliance(tenderId, v.id, 'ProcureAI Engine v2.4', useLocalAI);
+    }));
 
     return allResults;
   }

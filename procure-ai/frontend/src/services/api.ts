@@ -88,6 +88,21 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ text })
     }),
+    uploadAndExtract: async (file: File, useLocalAI: boolean = false) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('useLocalAI', useLocalAI.toString());
+      
+      const token = sessionStorage.getItem('bidguard_token');
+      const response = await fetch(`/api/tenders/upload-and-extract`, {
+        method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        body: formData
+      });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error);
+      return json.data as Requirement[];
+    },
   },
 
   // --- Vendors ---
@@ -119,13 +134,16 @@ export const api = {
       return request<VendorDocument[]>(`/documents${qs ? `?${qs}` : ''}`);
     },
     getById: (id: string) => request<VendorDocument>(`/documents/${id}`),
+    delete: (id: string) => request<{ success: boolean }>(`/documents/${id}`, {
+      method: 'DELETE'
+    }),
   },
 
   // --- AI Verification ---
   verification: {
-    verify: (tenderId: string, vendorId?: string) => request<ComplianceResult[] | Record<string, ComplianceResult[]>>('/verification/verify', {
+    verify: (tenderId: string, vendorId?: string, useLocalAI: boolean = false) => request<ComplianceResult[] | Record<string, ComplianceResult[]>>('/verification/verify', {
       method: 'POST',
-      body: JSON.stringify({ tenderId, vendorId })
+      body: JSON.stringify({ tenderId, vendorId, useLocalAI })
     }),
     getResults: (tenderId?: string, vendorId?: string) => {
       const params = new URLSearchParams();

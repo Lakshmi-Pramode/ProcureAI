@@ -194,6 +194,18 @@ class MemoryStoreService {
         this.documents.set(id, updated);
         return updated;
     }
+    deleteDocument(id) {
+        const existing = this.documents.get(id);
+        if (!existing)
+            return false;
+        this.documents.delete(id);
+        const vendor = this.getVendorById(existing.vendorId);
+        if (vendor) {
+            const docs = vendor.documents.filter(d => d.id !== id);
+            this.updateVendor(vendor.id, { documents: docs });
+        }
+        return true;
+    }
     // --- Compliance Results ---
     getComplianceResults(tenderId, vendorId) {
         let list = Array.from(this.complianceResults.values());

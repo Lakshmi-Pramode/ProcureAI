@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   Sparkles, FileText,
   Check, RotateCcw,
-  BookOpen, RefreshCw, Play
+  BookOpen, RefreshCw, Play, Lock, Cloud
 } from 'lucide-react';
 import PageHeader from '../components/shared/PageHeader';
 import StatusBadge from '../components/shared/StatusBadge';
@@ -24,6 +24,7 @@ export default function AIVerification() {
   const [overrideStatus, setOverrideStatus] = useState<ComplianceStatus>('compliant');
   const [overrideReason, setOverrideReason] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
+  const [useLocalAI, setUseLocalAI] = useState(false);
 
   useEffect(() => {
     api.tenders.getAll().then(t => {
@@ -64,7 +65,7 @@ export default function AIVerification() {
   const handleRunVerification = async () => {
     setIsVerifying(true);
     try {
-      const res = await api.verification.verify(selectedTenderId, selectedVendorId);
+      const res = await api.verification.verify(selectedTenderId, selectedVendorId, useLocalAI);
       if (Array.isArray(res) && res.length > 0) {
         setResults(prev => {
           const others = prev.filter(p => p.vendorId !== selectedVendorId || p.tenderId !== selectedTenderId);
@@ -118,9 +119,21 @@ export default function AIVerification() {
         breadcrumbs={[{ label: 'AI Verification' }]}
         actions={
           <div className="flex items-center gap-3">
-            <span className="text-xs text-compliant bg-compliant-bg border border-compliant-border px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-medium">
-              <Sparkles className="w-3.5 h-3.5" /> BidGuard NLP v2.4 Active
-            </span>
+            <button
+              onClick={() => setUseLocalAI(!useLocalAI)}
+              className={`text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-medium transition ${
+                useLocalAI 
+                  ? 'bg-purple-100 text-purple-700 border border-purple-200' 
+                  : 'bg-compliant-bg text-compliant border border-compliant-border'
+              }`}
+              title={useLocalAI ? "Switch to Cloud AI Engine" : "Switch to Local Privacy Mode"}
+            >
+              {useLocalAI ? (
+                <><Lock className="w-3.5 h-3.5" /> Local Privacy Mode</>
+              ) : (
+                <><Cloud className="w-3.5 h-3.5" /> Cloud AI Engine</>
+              )}
+            </button>
             <button
               onClick={handleRunVerification}
               disabled={isVerifying}

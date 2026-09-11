@@ -5,7 +5,7 @@ import type { ComplianceStatus } from '../types/index.js';
 
 export const runVerification = async (req: Request, res: Response) => {
   try {
-    const { tenderId, vendorId } = req.body;
+    const { tenderId, vendorId, useLocalAI } = req.body;
     if (!tenderId) {
       return res.status(400).json({ success: false, error: 'tenderId is required' });
     }
@@ -13,12 +13,12 @@ export const runVerification = async (req: Request, res: Response) => {
     const officerName = (req as any).user?.name || 'Procurement Officer';
 
     if (vendorId) {
-      const results = await complianceEngineService.verifyVendorCompliance(tenderId, vendorId, officerName);
+      const results = await complianceEngineService.verifyVendorCompliance(tenderId, vendorId, officerName, useLocalAI);
       return res.json({ success: true, data: results });
     }
 
     // If no vendorId, verify all vendors for this tender
-    const allResults = await complianceEngineService.verifyAllBiddersForTender(tenderId);
+    const allResults = await complianceEngineService.verifyAllBiddersForTender(tenderId, useLocalAI);
     res.json({ success: true, data: allResults });
   } catch (err) {
     res.status(500).json({ success: false, error: (err as Error).message });

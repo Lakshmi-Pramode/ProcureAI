@@ -30,6 +30,7 @@ router.get('/dashboard/stats', dashboardController.getStats);
 
 // --- Tenders ---
 router.get('/tenders', tenderController.getTenders);
+router.post('/tenders/upload-and-extract', authenticate, upload.single('file'), tenderController.uploadAndExtract);
 router.get('/tenders/:id', tenderController.getTenderById);
 router.post('/tenders', authenticate, tenderController.createTender);
 router.put('/tenders/:id', authenticate, tenderController.updateTender);
@@ -47,6 +48,7 @@ router.get('/vendors/scores/:tenderId', vendorController.getVendorScores);
 router.post('/documents/upload', authenticate, upload.single('file'), documentController.uploadDocument);
 router.get('/documents', documentController.getDocuments);
 router.get('/documents/:id', documentController.getDocumentById);
+router.delete('/documents/:id', authenticate, documentController.deleteDocument);
 
 // --- AI Verification ---
 router.post('/verification/verify', authenticate, verificationController.runVerification);

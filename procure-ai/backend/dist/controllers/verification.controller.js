@@ -2,17 +2,17 @@ import { memoryStore } from '../services/memoryStore.service.js';
 import { complianceEngineService } from '../services/complianceEngine.service.js';
 export const runVerification = async (req, res) => {
     try {
-        const { tenderId, vendorId } = req.body;
+        const { tenderId, vendorId, useLocalAI } = req.body;
         if (!tenderId) {
             return res.status(400).json({ success: false, error: 'tenderId is required' });
         }
         const officerName = req.user?.name || 'Procurement Officer';
         if (vendorId) {
-            const results = await complianceEngineService.verifyVendorCompliance(tenderId, vendorId, officerName);
+            const results = await complianceEngineService.verifyVendorCompliance(tenderId, vendorId, officerName, useLocalAI);
             return res.json({ success: true, data: results });
         }
         // If no vendorId, verify all vendors for this tender
-        const allResults = await complianceEngineService.verifyAllBiddersForTender(tenderId);
+        const allResults = await complianceEngineService.verifyAllBiddersForTender(tenderId, useLocalAI);
         res.json({ success: true, data: allResults });
     }
     catch (err) {

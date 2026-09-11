@@ -187,3 +187,27 @@ export const extractRequirements = async (req: Request, res: Response) => {
     res.status(500).json({ success: false, error: (err as Error).message });
   }
 };
+
+export const uploadAndExtract = async (req: Request, res: Response) => {
+  try {
+    const file = req.file;
+    if (!file) {
+      return res.status(400).json({ success: false, error: 'No file uploaded' });
+    }
+
+    const { useLocalAI } = req.body;
+    
+    const { documentParserService } = await import('../services/documentParser.service.js');
+    const { text } = await documentParserService.extractTextFromFile(file.path, file.mimetype);
+
+    const clauses = await geminiService.extractRequirementsFromText(
+      text || 'General procurement criteria',
+      file.originalname,
+      useLocalAI === 'true' || useLocalAI === true
+    );
+
+    res.json({ success: true, data: clauses });
+  } catch (err) {
+    res.status(500).json({ success: false, error: (err as Error).message });
+  }
+};
