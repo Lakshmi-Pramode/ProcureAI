@@ -5,15 +5,15 @@ import {
 } from 'lucide-react';
 import PageHeader from '../components/shared/PageHeader';
 import type { Requirement, ComplianceResult, Tender, Vendor } from '../types';
-import { demoTenders, demoVendors, demoRequirements, demoComplianceResults } from '../data/demo';
+import { demoVendors,  demoComplianceResults } from '../data/demo';
 import { api } from '../services/api';
 
 export default function ComplianceAnalysis() {
-  const [tenders, setTenders] = useState<Tender[]>(demoTenders);
-  const [vendors, setVendors] = useState<Vendor[]>(demoVendors);
-  const [requirements, setRequirements] = useState<Requirement[]>(demoRequirements);
-  const [complianceResults, setComplianceResults] = useState<ComplianceResult[]>(demoComplianceResults);
-  const [selectedTenderId, setSelectedTenderId] = useState(demoTenders[0].id);
+  const [tenders, setTenders] = useState<Tender[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [requirements, setRequirements] = useState<Requirement[]>([]);
+  const [complianceResults, setComplianceResults] = useState<ComplianceResult[]>([]);
+  const [selectedTenderId, setSelectedTenderId] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 

@@ -9,14 +9,14 @@ import StatusBadge from '../components/shared/StatusBadge';
 import RiskBadge from '../components/shared/RiskBadge';
 import Tabs from '../components/shared/Tabs';
 import ComplianceScore from '../components/shared/ComplianceScore';
-import { demoTender, demoTenders, demoRequirements, demoVendors, demoVendorScores } from '../data/demo';
+import { demoRequirements, demoVendors, demoVendorScores } from '../data/demo';
 import { api } from '../services/api';
 
 export default function TenderDetails() {
   const { id } = useParams();
   const [activeTab, setActiveTab] = useState('overview');
   const [tender, setTender] = useState<any>(
-    id === 'tender_001' ? demoTender : demoTenders.find(t => t.id === id) || demoTender
+    null
   );
   const [requirements, setRequirements] = useState(demoRequirements);
   const [vendors, setVendors] = useState(demoVendors);
@@ -36,6 +36,8 @@ export default function TenderDetails() {
         .catch(() => {});
     }
   }, [id]);
+
+  if (!tender) return <div className="p-8 text-center text-text-secondary">Loading...</div>;
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: <FileText className="w-4 h-4" /> },

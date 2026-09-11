@@ -42,7 +42,9 @@ def groq_chat(client: Groq, prompt: str) -> str:
         except Exception as e:
             print(f"Model {model} failed: {e}")
             last_err = e
-    raise last_err
+    if last_err is not None:
+        raise last_err
+    raise Exception("No models available to try")
 
 class RequirementExtractionRequest(BaseModel):
     text: str

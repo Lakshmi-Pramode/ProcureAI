@@ -7,18 +7,18 @@ import {
 import PageHeader from '../components/shared/PageHeader';
 import StatusBadge from '../components/shared/StatusBadge';
 import type { ComplianceStatus, ComplianceResult, Tender, Vendor } from '../types';
-import { demoTenders, demoVendors, demoRequirements, demoComplianceResults } from '../data/demo';
+import { demoRequirements, demoComplianceResults } from '../data/demo';
 import { api } from '../services/api';
 import { useToast } from '../contexts/ToastContext';
 
 export default function AIVerification() {
   const { addToast } = useToast();
-  const [tenders, setTenders] = useState<Tender[]>(demoTenders);
-  const [vendors, setVendors] = useState<Vendor[]>(demoVendors);
-  const [selectedTenderId, setSelectedTenderId] = useState(demoTenders[0].id);
-  const [selectedVendorId, setSelectedVendorId] = useState(demoVendors[0].id);
-  const [results, setResults] = useState<ComplianceResult[]>(demoComplianceResults);
-  const [selectedResultId, setSelectedResultId] = useState<string>(demoComplianceResults[0].id);
+  const [tenders, setTenders] = useState<Tender[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [selectedTenderId, setSelectedTenderId] = useState('');
+  const [selectedVendorId, setSelectedVendorId] = useState('');
+  const [results, setResults] = useState<ComplianceResult[]>([]);
+  const [selectedResultId, setSelectedResultId] = useState<string>('');
   const [userOverrides, setUserOverrides] = useState<Record<string, { status: ComplianceStatus; reason: string }>>({});
   const [overrideModalOpen, setOverrideModalOpen] = useState(false);
   const [overrideStatus, setOverrideStatus] = useState<ComplianceStatus>('compliant');

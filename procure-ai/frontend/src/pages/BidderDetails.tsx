@@ -12,11 +12,9 @@ import Tabs from '../components/shared/Tabs';
 import ComplianceScore from '../components/shared/ComplianceScore';
 import DocumentCard from '../components/shared/DocumentCard';
 import type { ComplianceResult, VendorDocument, RiskFactor, Inconsistency, AuditEntry, Vendor } from '../types';
-import {
-  demoVendors, demoComplianceResults,
+import { demoVendors, demoComplianceResults,
   demoRiskAssessments, demoVendorScores, demoExternalVerifications,
-  demoAuditLog
-} from '../data/demo';
+  demoAuditLog } from '../data/demo';
 import { api } from '../services/api';
 
 export default function BidderDetails() {
@@ -66,6 +64,8 @@ export default function BidderDetails() {
 
   const score = demoVendorScores.find(s => s.vendorId === vendor.id);
   const auditEntries: AuditEntry[] = demoAuditLog.filter(a => a.details.includes(vendor.name) || a.vendorId === vendor.id);
+
+  if (!vendor) return <div className="p-8 text-center text-text-secondary">Loading...</div>;
 
   const tabs = [
     { id: 'compliance', label: 'Compliance Criteria', icon: <ShieldCheck className="w-4 h-4" />, count: compliance.length },

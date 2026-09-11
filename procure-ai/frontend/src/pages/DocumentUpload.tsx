@@ -6,7 +6,7 @@ import {
 import PageHeader from '../components/shared/PageHeader';
 import StatusBadge from '../components/shared/StatusBadge';
 import type { VendorDocument, Tender, Vendor } from '../types';
-import { demoTenders, demoVendors, demoVendorDocuments } from '../data/demo';
+import { demoVendors } from '../data/demo';
 import { api } from '../services/api';
 
 interface UploadItem {
@@ -21,13 +21,13 @@ interface UploadItem {
 }
 
 export default function DocumentUpload() {
-  const [tenders, setTenders] = useState<Tender[]>(demoTenders);
-  const [vendors, setVendors] = useState<Vendor[]>(demoVendors);
-  const [selectedTender, setSelectedTender] = useState(demoTenders[0].id);
-  const [selectedVendor, setSelectedVendor] = useState(demoVendors[0].id);
+  const [tenders, setTenders] = useState<Tender[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [selectedTender, setSelectedTender] = useState('');
+  const [selectedVendor, setSelectedVendor] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('GST Certificate');
   const [uploadQueue, setUploadQueue] = useState<UploadItem[]>([]);
-  const [recentDocs, setRecentDocs] = useState<VendorDocument[]>(demoVendorDocuments);
+  const [recentDocs, setRecentDocs] = useState<VendorDocument[]>([]);
   const [dragOver, setDragOver] = useState(false);
 
   useEffect(() => {

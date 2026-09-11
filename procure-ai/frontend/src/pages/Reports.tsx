@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Download, Printer } from 'lucide-react';
 import PageHeader from '../components/shared/PageHeader';
-import { demoTenders, demoVendors, demoVendorScores } from '../data/demo';
+import { demoVendors, demoVendorScores } from '../data/demo';
 import { api } from '../services/api';
 import type { Tender, VendorScore } from '../types';
 
 export default function Reports() {
-  const [tenders, setTenders] = useState<Tender[]>(demoTenders);
-  const [selectedTender, setSelectedTender] = useState(demoTenders[0].id);
+  const [tenders, setTenders] = useState<Tender[]>([]);
+  const [selectedTender, setSelectedTender] = useState('');
   const [reportType, setReportType] = useState('full');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [vendorScores, setVendorScores] = useState<VendorScore[]>(demoVendorScores);
+  const [vendorScores, setVendorScores] = useState<VendorScore[]>([]);
 
   useEffect(() => {
     api.tenders.getAll().then(res => {
@@ -29,7 +29,7 @@ export default function Reports() {
     }
   }, [selectedTender]);
 
-  const tender = tenders.find(t => t.id === selectedTender) || tenders[0] || demoTenders[0];
+  const tender = tenders.find(t => t.id === selectedTender) || tenders[0] || null;
 
   const handleDownload = () => {
     setIsGenerating(true);

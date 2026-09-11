@@ -4,15 +4,15 @@ import { Search, Eye, ChevronDown } from 'lucide-react';
 import PageHeader from '../components/shared/PageHeader';
 import StatusBadge from '../components/shared/StatusBadge';
 import RiskBadge from '../components/shared/RiskBadge';
-import { demoVendors, demoVendorScores } from '../data/demo';
+
 import { api } from '../services/api';
 import type { Vendor, VendorScore } from '../types';
 
 export default function BidderManagement() {
   const [searchQuery, setSearchQuery] = useState('');
   const [riskFilter, setRiskFilter] = useState('all');
-  const [vendors, setVendors] = useState<Vendor[]>(demoVendors);
-  const [scores, setScores] = useState<VendorScore[]>(demoVendorScores);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [scores, setScores] = useState<VendorScore[]>([]);
 
   useEffect(() => {
     api.vendors.getAll().then(res => {

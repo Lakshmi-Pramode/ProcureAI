@@ -133,6 +133,7 @@ export interface VendorDocument {
   fileType: string;
   uploadedAt: string;
   status: DocumentProcessingStatus;
+  filePath?: string;
   extractedData?: ExtractedData;
 }
 

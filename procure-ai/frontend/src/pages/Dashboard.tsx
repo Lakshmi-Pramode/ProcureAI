@@ -12,7 +12,7 @@ import { useAuth } from '../contexts/AuthContext';
 import StatCard from '../components/shared/StatCard';
 import StatusBadge from '../components/shared/StatusBadge';
 import RiskBadge from '../components/shared/RiskBadge';
-import { demoTenders } from '../data/demo';
+
 import { api } from '../services/api';
 import type { Tender, DashboardStats } from '../types';
 
@@ -57,7 +57,7 @@ export default function Dashboard() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
-  const [tenders, setTenders] = useState<Tender[]>(demoTenders);
+  const [tenders, setTenders] = useState<Tender[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
 
   useEffect(() => {

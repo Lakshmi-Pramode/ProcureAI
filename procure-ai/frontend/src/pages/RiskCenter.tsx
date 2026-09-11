@@ -6,13 +6,13 @@ import {
 import PageHeader from '../components/shared/PageHeader';
 import RiskBadge from '../components/shared/RiskBadge';
 import type { RiskAssessment, RiskFactor, Inconsistency, Vendor } from '../types';
-import { demoVendors, demoRiskAssessments } from '../data/demo';
+import { demoRiskAssessments } from '../data/demo';
 import { api } from '../services/api';
 
 export default function RiskCenter() {
   const [selectedRiskFilter, setSelectedRiskFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [vendors, setVendors] = useState<Vendor[]>(demoVendors);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [riskAssessmentList, setRiskAssessmentList] = useState<RiskAssessment[]>(Object.values(demoRiskAssessments));
 
   useEffect(() => {

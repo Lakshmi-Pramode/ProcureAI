@@ -3,12 +3,12 @@ import { Link } from 'react-router-dom';
 import { Plus, Upload, Search, Eye, Calendar, ChevronDown } from 'lucide-react';
 import PageHeader from '../components/shared/PageHeader';
 import StatusBadge from '../components/shared/StatusBadge';
-import { demoTenders } from '../data/demo';
+
 import { api } from '../services/api';
 import type { Tender } from '../types';
 
 export default function TenderManagement() {
-  const [tenders, setTenders] = useState<Tender[]>(demoTenders);
+  const [tenders, setTenders] = useState<Tender[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
