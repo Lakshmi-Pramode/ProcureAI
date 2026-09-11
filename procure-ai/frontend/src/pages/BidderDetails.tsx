@@ -26,6 +26,28 @@ export default function BidderDetails() {
   const [compliance, setCompliance] = useState<ComplianceResult[]>(demoComplianceResults.filter(c => c.vendorId === (id || demoVendors[0].id)));
   const [risk, setRisk] = useState<any>(demoRiskAssessments[id || demoVendors[0].id]);
   const [documents, setDocuments] = useState<VendorDocument[]>(demoVendors[0].documents || []);
+  const [isEvaluating, setIsEvaluating] = useState(false);
+
+  const handleEvaluate = async () => {
+    if (!id || !vendor.tenderIds || vendor.tenderIds.length === 0) return;
+    setIsEvaluating(true);
+    try {
+      await api.verification.verify(vendor.tenderIds[0], id);
+      // Fetch updated data after evaluation
+      const res = await api.vendors.getById(id);
+      if (res) {
+        setVendor(res);
+        if (res.documents) setDocuments(res.documents);
+        if (res.complianceResults && res.complianceResults.length > 0) setCompliance(res.complianceResults);
+        if (res.riskAssessment) setRisk(res.riskAssessment);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Evaluation failed or AI Service not reachable.');
+    } finally {
+      setIsEvaluating(false);
+    }
+  };
 
   useEffect(() => {
     if (id) {
@@ -64,11 +86,14 @@ export default function BidderDetails() {
         ]}
         actions={
           <div className="flex items-center gap-2">
-            <button className="px-4 py-2 border border-border rounded-lg text-sm font-medium hover:bg-surface-secondary flex items-center gap-2 transition">
+            <button onClick={() => window.print()} className="px-4 py-2 border border-border rounded-lg text-sm font-medium hover:bg-surface-secondary flex items-center gap-2 transition">
               <Download className="w-4 h-4" /> Export Report
             </button>
-            <button className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 shadow-sm transition">
-              Evaluate Bid
+            <button 
+              onClick={handleEvaluate}
+              disabled={isEvaluating}
+              className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 shadow-sm transition disabled:opacity-50">
+              {isEvaluating ? 'Evaluating...' : 'Evaluate Bid'}
             </button>
           </div>
         }
@@ -202,7 +227,7 @@ export default function BidderDetails() {
                   status={doc.status}
                   uploadDate={doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : undefined}
                   size={doc.fileSize ? `${(doc.fileSize / 1024).toFixed(0)} KB` : '1.2 MB'}
-                  onView={() => window.open('#', '_blank')}
+                  onView={() => doc.filePath ? window.open(doc.filePath, '_blank') : alert('No file available for preview in demo mode.')}
                 />
               ))}
             </div>

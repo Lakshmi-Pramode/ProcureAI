@@ -38,7 +38,7 @@ export default function AuditTrail() {
             <span className="text-xs text-compliant bg-compliant-bg border border-compliant-border px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-medium">
               <ShieldCheck className="w-3.5 h-3.5" /> Chain of Custody Verified
             </span>
-            <button className="px-3 py-1.5 border border-border rounded-lg text-xs font-semibold hover:bg-surface-secondary flex items-center gap-1.5 transition">
+            <button onClick={() => window.print()} className="px-3 py-1.5 border border-border rounded-lg text-xs font-semibold hover:bg-surface-secondary flex items-center gap-1.5 transition">
               <Download className="w-3.5 h-3.5" /> Export Log
             </button>
           </div>

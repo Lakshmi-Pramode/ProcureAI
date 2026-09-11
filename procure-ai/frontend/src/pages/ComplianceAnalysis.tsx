@@ -79,7 +79,7 @@ export default function ComplianceAnalysis() {
         breadcrumbs={[{ label: 'Compliance Analysis' }]}
         actions={
           <div className="flex items-center gap-2">
-            <button className="px-4 py-2 border border-border rounded-lg text-xs font-semibold hover:bg-surface-secondary flex items-center gap-2 transition">
+            <button onClick={() => window.print()} className="px-4 py-2 border border-border rounded-lg text-xs font-semibold hover:bg-surface-secondary flex items-center gap-2 transition">
               <Download className="w-3.5 h-3.5" /> Export Matrix (CSV)
             </button>
           </div>

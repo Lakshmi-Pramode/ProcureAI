@@ -87,10 +87,9 @@ export default function BidderManagement() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-3.5 text-text-secondary font-mono text-xs">CPCL/IT/2026/001</td>
+                  <td className="px-6 py-3.5 text-text-secondary font-mono text-xs">{b.tenderIds?.[0] || 'N/A'}</td>
                   <td className="px-6 py-3.5 text-text-secondary">
                     <span className="font-semibold">{b.documents.length}</span>
-                    <span className="text-text-tertiary">/{b.documents.length > 10 ? 12 : 10}</span>
                   </td>
                   <td className="px-6 py-3.5">
                     <span className="font-bold" style={{ color: (b.score?.overallScore || 0) >= 80 ? '#059669' : (b.score?.overallScore || 0) >= 50 ? '#d97706' : '#dc2626' }}>

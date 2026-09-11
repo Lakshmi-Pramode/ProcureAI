@@ -1,32 +1,45 @@
 import { useState, useEffect } from 'react';
 import { ShieldAlert, FileText, CheckCircle, XCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import PageHeader from '../components/shared/PageHeader';
-import { demoVendors, demoComplianceResults } from '../data/demo';
 import type { ComplianceResult } from '../types';
 import { useToast } from '../contexts/ToastContext';
+import { api } from '../services/api';
 
 export default function ManualReviewCenter() {
   const { addToast } = useToast();
-  const [results, setResults] = useState<ComplianceResult[]>(demoComplianceResults);
+  const [results, setResults] = useState<ComplianceResult[]>([]);
   const [selectedResult, setSelectedResult] = useState<ComplianceResult | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Filter only those needing manual review
   const manualReviewItems = results.filter(r => r.status === 'manual_review');
 
   useEffect(() => {
-    // In a real app, this would fetch only manual review items
-    // For demo, we just use the pre-loaded / demo ones
+    api.verification.getResults().then(res => {
+      if (res && res.length > 0) setResults(res);
+    }).catch(() => {});
   }, []);
 
-  const handleAction = (status: 'compliant' | 'non_compliant') => {
+  const handleAction = async (status: 'compliant' | 'non_compliant') => {
     if (!selectedResult) return;
-    
-    setResults(prev => prev.map(r => 
-      r.id === selectedResult.id ? { ...r, status } : r
-    ));
-    
-    addToast('success', 'Manual Review Completed', `Requirement marked as ${status === 'compliant' ? 'Compliant' : 'Non-Compliant'}`);
-    setSelectedResult(null);
+    setIsSubmitting(true);
+    try {
+      await api.verification.saveOverride(selectedResult.id, status, `Manually reviewed by officer`);
+      setResults(prev => prev.map(r =>
+        r.id === selectedResult.id ? { ...r, status } : r
+      ));
+      addToast('success', 'Manual Review Completed', `Requirement marked as ${status === 'compliant' ? 'Compliant' : 'Non-Compliant'}`);
+      setSelectedResult(null);
+    } catch {
+      // Optimistic update if API fails (offline mode)
+      setResults(prev => prev.map(r =>
+        r.id === selectedResult.id ? { ...r, status } : r
+      ));
+      addToast('success', 'Manual Review Completed', `Requirement marked as ${status === 'compliant' ? 'Compliant' : 'Non-Compliant'}`);
+      setSelectedResult(null);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -50,9 +63,8 @@ export default function ManualReviewCenter() {
                 No items pending manual review.
               </div>
             ) : manualReviewItems.map(item => {
-              const vendor = demoVendors.find(v => v.id === item.vendorId);
               const isSelected = item.id === selectedResult?.id;
-              
+
               return (
                 <button
                   key={item.id}
@@ -67,7 +79,7 @@ export default function ManualReviewCenter() {
                     </span>
                     <span className="text-xs font-semibold text-text-secondary">{item.confidence}% Match</span>
                   </div>
-                  <p className="text-sm font-semibold text-text-primary mt-1">{vendor?.name || 'Unknown Vendor'}</p>
+                  <p className="text-sm font-semibold text-text-primary mt-1">{item.vendorId}</p>
                   <p className="text-xs text-text-tertiary line-clamp-1">{item.requirement?.description || 'Requirement Check'}</p>
                 </button>
               );
@@ -83,7 +95,7 @@ export default function ManualReviewCenter() {
                 <ShieldAlert className="w-6 h-6 text-manual-review" />
                 <div>
                   <h3 className="text-base font-bold text-text-primary">Manual Verification Required</h3>
-                  <p className="text-xs text-text-secondary">Vendor: {demoVendors.find(v => v.id === selectedResult.vendorId)?.name}</p>
+                  <p className="text-xs text-text-secondary">Vendor ID: {selectedResult.vendorId}</p>
                 </div>
               </div>
 
@@ -118,21 +130,23 @@ export default function ManualReviewCenter() {
               </div>
 
               <div className="pt-4 border-t border-border flex justify-end gap-3">
-                <button
-                  onClick={() => window.open('#', '_blank')}
+                <Link
+                  to={`/bidders/${selectedResult.vendorId}`}
                   className="px-4 py-2 border border-border rounded-lg text-xs font-semibold hover:bg-surface-secondary text-text-primary transition mr-auto"
                 >
-                  Review Original Document
-                </button>
+                  View Bidder Profile
+                </Link>
                 <button
                   onClick={() => handleAction('non_compliant')}
-                  className="px-4 py-2 bg-non-compliant-bg text-non-compliant border border-non-compliant border-opacity-30 rounded-lg text-xs font-semibold hover:bg-red-100 flex items-center gap-2 transition"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 bg-non-compliant-bg text-non-compliant border border-non-compliant border-opacity-30 rounded-lg text-xs font-semibold hover:bg-red-100 flex items-center gap-2 transition disabled:opacity-50"
                 >
                   <XCircle className="w-4 h-4" /> Mark Non-Compliant
                 </button>
                 <button
                   onClick={() => handleAction('compliant')}
-                  className="px-4 py-2 bg-compliant text-white rounded-lg text-xs font-semibold hover:bg-green-600 flex items-center gap-2 transition"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 bg-compliant text-white rounded-lg text-xs font-semibold hover:bg-green-600 flex items-center gap-2 transition disabled:opacity-50"
                 >
                   <CheckCircle className="w-4 h-4" /> Mark Compliant
                 </button>

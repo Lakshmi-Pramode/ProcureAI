@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Check, AlertCircle, AlertTriangle, Info, CheckCircle2,
   Trash2
@@ -148,12 +149,12 @@ export default function Notifications() {
 
               <div className="flex items-center gap-2 shrink-0">
                 {item.link && (
-                  <a
-                    href={item.link}
+                  <Link
+                    to={item.link}
                     className="px-2.5 py-1 rounded bg-surface-secondary hover:bg-surface-tertiary text-xs font-semibold text-primary-600 transition"
                   >
                     Investigate
-                  </a>
+                  </Link>
                 )}
                 <button
                   onClick={() => clearNotification(item.id)}
